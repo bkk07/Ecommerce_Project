@@ -4,8 +4,8 @@ spring:
   mail:
     host: smtp.gmail.com
     port: 587
-    username: your@gmail
-    password: password  # Generate an App Password in Google Account -> Security
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
     properties:
       mail:
         smtp:
@@ -45,3 +45,10 @@ management:
     web:
       exposure:
         include: health,info
+
+
+twilio:
+  account-sid: ${SID_TWILIO} # From Twilio Dashboard
+  auth-token: ${TOKEN_TWILIO} # From Twilio Dashboard
+  phone-number: ${PHNO_TWILIO}           # Your Twilio Trial/Purchased Number
+

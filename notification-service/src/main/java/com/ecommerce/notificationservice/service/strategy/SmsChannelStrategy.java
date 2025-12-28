@@ -18,7 +18,6 @@ public class SmsChannelStrategy implements NotificationChannelStrategy {
         }
         log.info("[SMS SENT] To: {}, Message: {}", recipient, message);
     }
-
     @Override
     public ChannelType getSupportedType() {
         return ChannelType.SMS;
