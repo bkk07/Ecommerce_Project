@@ -1,6 +1,7 @@
 package com.ecommerce.userservice.api.controller;
 
 import com.ecommerce.userservice.api.dto.AddressRequest;
+import com.ecommerce.userservice.api.dto.UserResponse;
 import com.ecommerce.userservice.domain.model.User;
 import com.ecommerce.userservice.service.UserService;
 import jakarta.validation.Valid; // Import this!
@@ -19,7 +20,7 @@ public class UserController {
     // Get User Profile
     @GetMapping("/{id}")
     public ResponseEntity<?> getUserById(@PathVariable Long id) {
-        User user = userService.getUserById(id);
+        UserResponse user = userService.getUserById(id);
         return ResponseEntity.ok(user);
     }
 
