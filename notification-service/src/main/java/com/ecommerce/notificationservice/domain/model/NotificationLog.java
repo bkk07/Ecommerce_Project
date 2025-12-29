@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 public class NotificationLog {
     private Long id;
     private String recipient;
+    private String eventId;
     private String content;
     private ChannelType channelType;
     private NotificationStatus status;

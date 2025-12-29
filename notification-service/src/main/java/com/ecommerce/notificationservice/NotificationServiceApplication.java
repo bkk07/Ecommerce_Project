@@ -19,28 +19,28 @@ import java.util.Optional;
 public class NotificationServiceApplication {
 
 	public static void main(String[] args) {
-//		SpringApplication.run(NotificationServiceApplication.class, args);
-        ConfigurableApplicationContext context =
-                SpringApplication.run(NotificationServiceApplication.class, args);
-
-        TemplateRepositoryPort templateRepository =
-                context.getBean(TemplateRepositoryPort.class);
-
-        NotificationService notificationService =context.getBean(NotificationService.class);
-        Optional<NotificationTemplate> template =
-                templateRepository.findByEventTypeAndChannel(
-                        "EMAIL_VERIFICATION",
-                        ChannelType.EMAIL
-                );
-        NotificationRequest notificationRequest = new NotificationRequest();
-        notificationRequest.setEventType("EMAIL_VERIFICATION");
-        notificationRequest.setChannelType(ChannelType.EMAIL);
-        notificationRequest.setRecipient("pomema2818@m3player.com");
-        Map<String ,String> map = new HashMap<>();
-        map.put("name","Kiran");
-        map.put("link","www.jaideep.com");
-        notificationRequest.setParams(map);
-        notificationService.processNotification(notificationRequest);
+		SpringApplication.run(NotificationServiceApplication.class, args);
+//        ConfigurableApplicationContext context =
+//                SpringApplication.run(NotificationServiceApplication.class, args);
+//
+//        TemplateRepositoryPort templateRepository =
+//                context.getBean(TemplateRepositoryPort.class);
+//
+//        NotificationService notificationService =context.getBean(NotificationService.class);
+//        Optional<NotificationTemplate> template =
+//                templateRepository.findByEventTypeAndChannel(
+//                        "EMAIL_VERIFICATION",
+//                        ChannelType.EMAIL
+//                );
+//        NotificationRequest notificationRequest = new NotificationRequest();
+//        notificationRequest.setEventType("EMAIL_VERIFICATION");
+//        notificationRequest.setChannelType(ChannelType.EMAIL);
+//        notificationRequest.setRecipient("pomema2818@m3player.com");
+//        Map<String ,String> map = new HashMap<>();
+//        map.put("name","Kiran");
+//        map.put("link","www.jaideep.com");
+//        notificationRequest.setParams(map);
+//        notificationService.processNotification(notificationRequest);
 	}
 
 }

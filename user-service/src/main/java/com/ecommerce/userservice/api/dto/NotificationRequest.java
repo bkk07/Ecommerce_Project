@@ -1,20 +1,17 @@
-package com.ecommerce.notificationservice.dto;
-
-import com.ecommerce.notificationservice.domain.enumtype.ChannelType;
+package com.ecommerce.userservice.api.dto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
 import java.util.Map;
-
 @Data
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class NotificationRequest {
+public class  NotificationRequest {
     private String eventType;
-    private ChannelType channelType;
+    private String channelType;
     private String recipient;
     private Map<String, String> params;
 }
+

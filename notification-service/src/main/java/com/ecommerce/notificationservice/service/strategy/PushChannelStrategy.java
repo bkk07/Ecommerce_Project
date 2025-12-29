@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 public class PushChannelStrategy implements NotificationChannelStrategy {
 
     @Override
-    public void send(String recipient, String message) {
+    public void send(String recipient,String subject,String message) {
         log.info(">>> Connecting to Push Notification Provider (FCM/Apple APNs)...");
         // Simulate Logic
         try {

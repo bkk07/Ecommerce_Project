@@ -22,5 +22,7 @@ public class NotificationTemplateEntity {
     @Enumerated(EnumType.STRING)
     private ChannelType channelType;
     private String subject;
+
+    @Column(columnDefinition = "TEXT")
     private String bodyTemplate;
 }

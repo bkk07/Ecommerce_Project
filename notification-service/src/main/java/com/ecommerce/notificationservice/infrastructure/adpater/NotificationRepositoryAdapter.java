@@ -34,4 +34,9 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryPort
         log.setId(saved.getId());
         return log;
     }
+
+    @Override
+    public boolean existsByEventId(String eventId) {
+        return jpaRepository.existsByEventId(eventId);
+    }
 }

@@ -2,14 +2,22 @@ package com.ecommerce.userservice.service;
 
 import com.ecommerce.userservice.api.dto.LoginRequest;
 import com.ecommerce.userservice.api.dto.RegisterRequest;
-import com.ecommerce.userservice.api.dto.UserAuthResponse;
+import com.ecommerce.userservice.api.dto.UserAuthResponse; // Ensure you have this Enum
 import com.ecommerce.userservice.domain.model.User;
 import com.ecommerce.userservice.domain.port.UserRepositoryPort;
-import com.ecommerce.userservice.exception.CustomException; // Assuming this exists based on your code
+import com.ecommerce.userservice.exception.CustomException;
+import com.ecommerce.userservice.infrastructure.messaging.KafkaNotificationProducer;
+import com.ecommerce.userservice.infrastructure.messaging.event.ChannelType;
+import com.ecommerce.userservice.infrastructure.messaging.event.NotificationEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -18,7 +26,9 @@ public class AuthenticationService {
     private final UserRepositoryPort userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final KafkaNotificationProducer kafkaProducer;
 
+    // --- Register ---
     public UserAuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new CustomException("Email already taken", HttpStatus.CONFLICT);
@@ -38,10 +48,21 @@ public class AuthenticationService {
         User savedUser = userRepository.save(newUser);
 
         // 3. Generate Token
-        // Assuming default role is "USER" as per your previous code
         String token = jwtService.generateToken(savedUser.getId().toString(), "USER");
 
-        // 4. Return Response
+        // 4. Send Welcome Notification
+        Map<String, String> params = new HashMap<>();
+        params.put("name", savedUser.getName());
+
+        kafkaProducer.sendNotification(NotificationEvent.builder()
+                .eventId(UUID.randomUUID().toString()) // Generate Unique ID
+                .eventType("USER_WELCOME")
+                .channel(ChannelType.EMAIL) // Enum
+                .recipient(savedUser.getEmail())
+                .payload(params) // Renamed from params -> payload
+                .occurredAt(LocalDateTime.now()) // Timestamp
+                .build());
+
         return UserAuthResponse.builder()
                 .token(token)
                 .userId(savedUser.getId())
@@ -57,41 +78,129 @@ public class AuthenticationService {
             throw new CustomException("Invalid Credentials", HttpStatus.UNAUTHORIZED);
         }
 
-        // Generate Token
         String token = jwtService.generateToken(user.getId().toString(), "USER");
-
         return UserAuthResponse.builder()
                 .token(token)
                 .userId(user.getId())
-                .role("USER") // Or user.getRole() if you add that field to domain model
+                .role("USER")
                 .build();
     }
 
+    public void initiateForgotPassword(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+
+        if (!user.isEmailVerified()) {
+            throw new CustomException("Email not verified. Cannot reset password.", HttpStatus.FORBIDDEN);
+        }
+        user.generateForgotPasswordOtp();
+        userRepository.save(user);
+
+        // Send OTP via Kafka (Urgent)
+        Map<String, String> params = new HashMap<>();
+        params.put("name", user.getName());
+        params.put("otp", user.getForgotPasswordOtp());
+
+        kafkaProducer.sendNotification(NotificationEvent.builder()
+                .eventId(UUID.randomUUID().toString())
+                .eventType("FORGOT_PASSWORD_OTP")
+                .channel(ChannelType.EMAIL)
+                .recipient(user.getEmail())
+                .payload(params)
+                .occurredAt(LocalDateTime.now())
+                .build());
+    }
+
+    // --- STEP 2: Verify OTP ---
+    public void verifyForgotPasswordOtp(String email, String otp) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+
+        user.validateForgotPasswordOtp(otp);
+        userRepository.save(user);
+    }
+
+    // --- STEP 3: Change Password ---
     public void forgotPassword(String email, String newPassword) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
 
-        if (!user.canResetPassword()) {
-            throw new CustomException("Cannot reset password: User must verify Email or Phone first.", HttpStatus.FORBIDDEN);
+        if (!user.isPasswordResetVerified()) {
+            throw new CustomException("Verification required. Please verify OTP first.", HttpStatus.FORBIDDEN);
+        }
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordResetVerified(false);
+        userRepository.save(user);
+    }
+
+    // --- Initiate Email Verification ---
+    public void initiateEmailVerification(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+
+        if (user.isEmailVerified()) {
+            throw new CustomException("Email already verified", HttpStatus.BAD_REQUEST);
         }
 
-        user.setPassword(passwordEncoder.encode(newPassword));
+        user.generateEmailOtp();
         userRepository.save(user);
+
+        // Send OTP via Kafka
+        Map<String, String> params = new HashMap<>();
+        params.put("name", user.getName());
+        params.put("otp", user.getEmailVerificationOtp());
+
+        kafkaProducer.sendNotification(NotificationEvent.builder()
+                .eventId(UUID.randomUUID().toString())
+                .eventType("VERIFY_EMAIL_OTP")
+                .channel(ChannelType.EMAIL)
+                .recipient(user.getEmail())
+                .payload(params)
+                .occurredAt(LocalDateTime.now())
+                .build());
     }
 
-    public void verifyEmail(Long userId) {
+    // --- Complete Email Verification ---
+    public void verifyEmail(Long userId, String otp) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
 
-        user.setEmailVerified(true);
+        user.validateEmailOtp(otp);
         userRepository.save(user);
     }
 
-    public void verifyPhone(Long userId) {
+    // --- Initiate Phone Verification ---
+    public void initiatePhoneVerification(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
 
-        user.setPhoneVerified(true);
+        if (user.isPhoneVerified()) {
+            throw new CustomException("Phone already verified", HttpStatus.BAD_REQUEST);
+        }
+
+        user.generatePhoneOtp();
+        userRepository.save(user);
+
+        // Send OTP via Kafka
+        Map<String, String> params = new HashMap<>();
+        params.put("otp", user.getPhoneVerificationOtp());
+
+        kafkaProducer.sendNotification(NotificationEvent.builder()
+                .eventId(UUID.randomUUID().toString())
+                .eventType("VERIFY_PHONE_OTP")
+                .channel(ChannelType.SMS)
+                .recipient(user.getPhone())
+                .payload(params)
+                .occurredAt(LocalDateTime.now())
+                .build());
+    }
+
+    // --- Complete Phone Verification ---
+    public void verifyPhone(Long userId, String otp) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+
+        user.validatePhoneOtp(otp);
         userRepository.save(user);
     }
 }

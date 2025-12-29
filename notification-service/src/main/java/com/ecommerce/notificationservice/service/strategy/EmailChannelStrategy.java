@@ -23,7 +23,7 @@ public class EmailChannelStrategy implements NotificationChannelStrategy {
     private String fromEmail;
 
     @Override
-    public void send(String recipient, String messageBody) {
+    public void send(String recipient,String subject,String messageBody) {
         log.info("Connecting to SMTP Server...");
 
         try {
@@ -34,7 +34,11 @@ public class EmailChannelStrategy implements NotificationChannelStrategy {
             // 2. Set Email Details
             helper.setText(messageBody, true); // 'true' means enable HTML
             helper.setTo(recipient);
-            helper.setSubject("Notification from E-Commerce App"); // You can also pass subject as a param if needed
+
+            String finalSubject = (subject != null && !subject.isEmpty())
+                    ? subject
+                    : "Notification from E-Commerce";
+            helper.setSubject(finalSubject); // You can also pass subject as a param if needed
             helper.setFrom(fromEmail);
 
             // 3. Send

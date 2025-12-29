@@ -2,6 +2,15 @@ server:
   port: 8081       # Random port (recommended with Eureka)
 
 spring:
+  kafka:
+    producer:
+      bootstrap-servers: localhost:9092
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # 👇 CHANGE THIS LINE
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        # Optional: This prevents errors if the package names don't match exactly on the consumer side
+        spring.json.add.type.headers: false
   application:
     name: user-service
 
@@ -10,6 +19,7 @@ spring:
     username: root
     password: Kiran@210800
     driver-class-name: com.mysql.cj.jdbc.Driver
+
 
   jpa:
     hibernate:

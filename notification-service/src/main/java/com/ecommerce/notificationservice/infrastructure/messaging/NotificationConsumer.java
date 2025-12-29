@@ -1,11 +1,12 @@
 package com.ecommerce.notificationservice.infrastructure.messaging;
 
-import com.ecommerce.notificationservice.dto.NotificationRequest;
+import com.ecommerce.notificationservice.domain.port.NotificationRepositoryPort;
+import com.ecommerce.notificationservice.infrastructure.events.NotificationEvent; // Ensure this import is correct
 import com.ecommerce.notificationservice.service.NotificationService;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.support.Acknowledgment;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -14,36 +15,50 @@ import org.springframework.stereotype.Component;
 public class NotificationConsumer {
 
     private final NotificationService notificationService;
-    private final ObjectMapper objectMapper;
-    // This is for the important notifications like email verification and mobile verification
-    // High Priority
-    @KafkaListener(topics = "notifications.urgent", groupId = "notif-group", containerFactory = "urgentFactory")
-    public void consumeUrgent(String message) {
-        processMessage(message, "URGENT");
+    private final NotificationRepositoryPort notificationRepository;
+
+    // NOTE: ObjectMapper is removed. Spring deserializes JSON -> NotificationEvent automatically now.
+
+    // 1. High Priority (Urgent)
+    @KafkaListener(topics = "notifications.urgent", groupId = "notification-group")
+    public void consumeUrgent(NotificationEvent event, Acknowledgment ack) { // <--- CHANGED FROM String TO NotificationEvent
+        processMessage(event, "URGENT", ack);
     }
 
-    // This is for the notifications like Order created
-    // Medium Priority
-    @KafkaListener(topics = "notifications.transactional", groupId = "notif-group", containerFactory = "transactionalFactory")
-    public void consumeTransactional(String message) {
-        processMessage(message, "TRANSACTIONAL");
+    // 2. Medium Priority (Transactional)
+    @KafkaListener(topics = "notifications.transactional", groupId = "notification-group")
+    public void consumeTransactional(NotificationEvent event, Acknowledgment ack) { // <--- CHANGED FROM String TO NotificationEvent
+        processMessage(event, "TRANSACTIONAL", ack);
     }
 
-    // For Promotions
-    // Low Priority
-    @KafkaListener(topics = "notifications.marketing", groupId = "notif-group", containerFactory = "marketingFactory")
-    public void consumeMarketing(String message) {
-        processMessage(message, "MARKETING");
+    // 3. Low Priority (Marketing)
+    @KafkaListener(topics = "notifications.marketing", groupId = "notification-group")
+    public void consumeMarketing(NotificationEvent event, Acknowledgment ack) { // <--- CHANGED FROM String TO NotificationEvent
+        processMessage(event, "MARKETING", ack);
     }
 
-    private void processMessage(String message, String priority) {
+    // Helper Method
+    private void processMessage(NotificationEvent event, String priority, Acknowledgment ack) {
         try {
-            log.info("[{}] Received: {}", priority, message);
-            NotificationRequest request = objectMapper.readValue(message, NotificationRequest.class);
-            notificationService.processNotification(request);
+            log.info("[{}] Received EventID: {}", priority, event.getEventId());
+
+            // Idempotency Check
+            if (notificationRepository.existsByEventId(event.getEventId())) {
+                log.warn("Duplicate Event Detected (EventID: {}). Skipping.", event.getEventId());
+                ack.acknowledge();
+                return;
+            }
+
+            // Process
+            notificationService.processNotification(event);
+
+            // Acknowledge
+            ack.acknowledge();
+            log.info("[{}] Successfully processed EventID: {}", priority, event.getEventId());
+
         } catch (Exception e) {
-            log.error("Error processing Kafka message", e);
-            // Ideally, send to Dead Letter Queue (DLQ) here
+            log.error("[{}] Error processing message. Sending to Retry/DLQ...", priority, e);
+            throw new RuntimeException("Consumer processing failed", e);
         }
     }
 }

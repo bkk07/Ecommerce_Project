@@ -5,8 +5,8 @@ import com.ecommerce.notificationservice.domain.model.NotificationLog;
 import com.ecommerce.notificationservice.domain.model.NotificationTemplate;
 import com.ecommerce.notificationservice.domain.port.NotificationRepositoryPort;
 import com.ecommerce.notificationservice.domain.port.TemplateRepositoryPort;
-import com.ecommerce.notificationservice.dto.NotificationRequest;
 import com.ecommerce.notificationservice.exception.TemplateNotFoundException;
+import com.ecommerce.notificationservice.infrastructure.events.NotificationEvent;
 import com.ecommerce.notificationservice.service.factory.ChannelStrategyFactory;
 import com.ecommerce.notificationservice.service.strategy.NotificationChannelStrategy;
 import lombok.RequiredArgsConstructor;
@@ -25,20 +25,27 @@ public class NotificationService {
     private final NotificationRepositoryPort notificationRepository;
     private final ChannelStrategyFactory strategyFactory;
 
-    public void processNotification(NotificationRequest request) {
-        log.info("Processing notification for: {}", request.getRecipient());
+    // CHANGED: Accepts NotificationEvent now
+    public void processNotification(NotificationEvent event) {
+        log.info("Processing notification for: {} (EventID: {})", event.getRecipient(), event.getEventId());
 
         // 1. Fetch Template
-        NotificationTemplate template = templateRepository.findByEventTypeAndChannel(request.getEventType(), request.getChannelType())
-                .orElseThrow(() -> new TemplateNotFoundException("No template found for " + request.getEventType()));
-        // 2. Render Message (Simple variable replacement)
-        String content = renderContent(template.getBodyTemplate(), request.getParams());
+        NotificationTemplate template = templateRepository.findByEventTypeAndChannel(
+                event.getEventType(),
+                event.getChannel() // CHANGED: getChannelType() -> getChannel()
+        ).orElseThrow(() -> new TemplateNotFoundException("No template found for " + event.getEventType()));
 
-        // 3. Create Initial Log (PENDING)
+        // 2. Render Body AND Subject
+        // CHANGED: getParams() -> getPayload()
+        String body = renderContent(template.getBodyTemplate(), event.getPayload());
+        String subject = renderContent(template.getSubject(), event.getPayload());
+
+        // 3. Create Log
         NotificationLog logEntry = NotificationLog.builder()
-                .recipient(request.getRecipient())
-                .channelType(request.getChannelType())
-                .content(content)
+                .eventId(event.getEventId())       // <--- NEW: Store Event ID for Idempotency
+                .recipient(event.getRecipient())
+                .channelType(event.getChannel())   // CHANGED
+                .content(body)
                 .status(NotificationStatus.PENDING)
                 .createdAt(LocalDateTime.now())
                 .retryCount(0)
@@ -48,25 +55,37 @@ public class NotificationService {
 
         // 4. Send via Strategy
         try {
-            NotificationChannelStrategy strategy = strategyFactory.getStrategy(request.getChannelType());
-            strategy.send(request.getRecipient(), content);
+            NotificationChannelStrategy strategy = strategyFactory.getStrategy(event.getChannel());
 
-            // 5. Update Status -> SENT
+            // Pass Subject AND Body
+            strategy.send(event.getRecipient(), subject, body);
+
             logEntry.setStatus(NotificationStatus.SENT);
         } catch (Exception e) {
             log.error("Failed to send notification", e);
-            // 5. Update Status -> FAILED
+
+            // Update DB status to FAILED
             logEntry.setStatus(NotificationStatus.FAILED);
             logEntry.setErrorMessage(e.getMessage());
+
+            // <--- CRITICAL FIX: Rethrow exception
+            // This ensures the Consumer knows it failed, triggering Retry -> DLQ.
+            throw new RuntimeException("Vendor sending failed", e);
         } finally {
             notificationRepository.save(logEntry);
         }
     }
 
+    // Safer Render Method (Handles nulls)
     public String renderContent(String template, Map<String, String> params) {
+        if (template == null) return "";
         String result = template;
-        for (Map.Entry<String, String> entry : params.entrySet()) {
-            result = result.replace("{" + entry.getKey() + "}", entry.getValue());
+        if (params != null) {
+            for (Map.Entry<String, String> entry : params.entrySet()) {
+                String key = "\\{" + entry.getKey() + "\\}"; // Regex escape
+                String value = entry.getValue() != null ? entry.getValue() : "";
+                result = result.replaceAll(key, value);
+            }
         }
         return result;
     }

@@ -9,9 +9,7 @@ import com.ecommerce.userservice.exception.CustomException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-
 import java.util.ArrayList;
-
 @Service
 @RequiredArgsConstructor
 public class UserService {
@@ -21,12 +19,10 @@ public class UserService {
     private User getUserByIdPrivate(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
-
     }
     public UserResponse getUserById(Long id) {
         return mapToUserResponse(getUserByIdPrivate(id));
     }
-
     public void addAddress(Long userId, AddressRequest request) {
         User user = getUserByIdPrivate(userId);
         // Convert DTO to Domain

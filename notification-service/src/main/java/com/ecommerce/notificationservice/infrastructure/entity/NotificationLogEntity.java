@@ -16,6 +16,9 @@ public class NotificationLogEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    private String eventId;
+
     private String recipient;
     @Column(columnDefinition = "TEXT")
     private String content;

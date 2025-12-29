@@ -23,6 +23,13 @@ public class UserPersistenceMapper {
                 .phone(entity.getPhone())
                 .isEmailVerified(entity.isEmailVerified())
                 .isPhoneVerified(entity.isPhoneVerified())
+                .emailVerificationOtp(entity.getEmailVerificationOtp())
+                .emailOtpExpiry(entity.getEmailOtpExpiry())
+                .phoneVerificationOtp(entity.getPhoneVerificationOtp())
+                .phoneOtpExpiry(entity.getPhoneOtpExpiry())
+                .forgotPasswordOtp(entity.getForgotPasswordOtp())
+                .forgotPasswordOtpExpiry(entity.getForgotPasswordOtpExpiry())
+                .isPasswordResetVerified(entity.isPasswordResetVerified())
                 .addresses(mapEntitiesToAddresses(entity.getAddresses()))
                 .build();
     }
@@ -31,12 +38,23 @@ public class UserPersistenceMapper {
         if (domain == null) return null;
         UserEntity entity = new UserEntity();
         if(domain.getId() != null) entity.setId(domain.getId());
+
         entity.setName(domain.getName());
         entity.setEmail(domain.getEmail());
         entity.setPassword(domain.getPassword());
         entity.setPhone(domain.getPhone());
         entity.setEmailVerified(domain.isEmailVerified());
         entity.setPhoneVerified(domain.isPhoneVerified());
+
+        // --- NEW MAPPINGS START ---
+        entity.setEmailVerificationOtp(domain.getEmailVerificationOtp());
+        entity.setEmailOtpExpiry(domain.getEmailOtpExpiry());
+        entity.setPhoneVerificationOtp(domain.getPhoneVerificationOtp());
+        entity.setPhoneOtpExpiry(domain.getPhoneOtpExpiry());
+        entity.setForgotPasswordOtp(domain.getForgotPasswordOtp());
+        entity.setForgotPasswordOtpExpiry(domain.getForgotPasswordOtpExpiry());
+        entity.setPasswordResetVerified(domain.isPasswordResetVerified());
+        // --- NEW MAPPINGS END ---
 
         // Map Addresses Domain -> Entity
         if (domain.getAddresses() != null) {
@@ -48,7 +66,7 @@ public class UserPersistenceMapper {
                 ae.setZipCode(addr.getZipCode());
                 ae.setCountry(addr.getCountry());
                 ae.setType(addr.getType());
-                ae.setUser(entity); // IMPORTANT: Set parent reference
+                ae.setUser(entity);
                 return ae;
             }).collect(Collectors.toList());
             entity.setAddresses(addressEntities);
