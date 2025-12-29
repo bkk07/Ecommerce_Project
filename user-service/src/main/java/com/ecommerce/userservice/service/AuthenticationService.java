@@ -33,7 +33,6 @@ public class AuthenticationService {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new CustomException("Email already taken", HttpStatus.CONFLICT);
         }
-
         // 1. Create User
         User newUser = User.builder()
                 .name(request.getName())
@@ -48,11 +47,12 @@ public class AuthenticationService {
         User savedUser = userRepository.save(newUser);
 
         // 3. Generate Token
-        String token = jwtService.generateToken(savedUser.getId().toString(), "USER");
+        String token = jwtService.generateToken(savedUser.getId().toString(), "ADMIN");
 
         // 4. Send Welcome Notification
         Map<String, String> params = new HashMap<>();
         params.put("name", savedUser.getName());
+
 
         kafkaProducer.sendNotification(NotificationEvent.builder()
                 .eventId(UUID.randomUUID().toString()) // Generate Unique ID
@@ -66,7 +66,7 @@ public class AuthenticationService {
         return UserAuthResponse.builder()
                 .token(token)
                 .userId(savedUser.getId())
-                .role("USER")
+                .role("ADMIN")
                 .build();
     }
 
@@ -77,12 +77,11 @@ public class AuthenticationService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new CustomException("Invalid Credentials", HttpStatus.UNAUTHORIZED);
         }
-
-        String token = jwtService.generateToken(user.getId().toString(), "USER");
+        String token = jwtService.generateToken(user.getId().toString(), "ADMIN");
         return UserAuthResponse.builder()
                 .token(token)
                 .userId(user.getId())
-                .role("USER")
+                .role("ADMIN")
                 .build();
     }
 

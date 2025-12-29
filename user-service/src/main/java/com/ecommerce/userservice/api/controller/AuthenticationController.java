@@ -1,8 +1,9 @@
 package com.ecommerce.userservice.api.controller;
-
+import com.ecommerce.Common;
 import com.ecommerce.userservice.api.dto.*;
 import com.ecommerce.userservice.service.AuthenticationService;
 import lombok.RequiredArgsConstructor;
+import org.apache.hc.core5.reactor.Command;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.Map;
@@ -13,8 +14,13 @@ import java.util.Map;
 public class AuthenticationController {
 
     private final AuthenticationService authService;
+    public String hello(){
+        Common common= new Common("Kiran","RED");
+        return common.toString();
+    }
 
     // --- 1. Register & Login ---
+
     @PostMapping("/register")
     public ResponseEntity<UserAuthResponse> register(@RequestBody RegisterRequest request) {
         return ResponseEntity.ok(authService.register(request));

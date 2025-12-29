@@ -30,6 +30,26 @@ spring:
             - name: AuthFilter
               args:
                 requiredRole: USER
+        # --- Route A: Public Read Access (GET) ---
+        # "Anyone can browse products"
+        - id: product-service-read
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/v1/products/**, /api/v1/categories/**
+            - Method=GET
+
+        # --- Route B: Admin Write Access (POST, PUT, DELETE) ---
+        # "Only Admins can change data"
+        # Your Java Filter (AuthenticationFilter) will run before this to validate the user
+        - id: product-service-write
+          uri: lb://PRODUCT-SERVICE
+          predicates:
+            - Path=/api/v1/products/**, /api/v1/categories/**, /api/v1/images/**
+            - Method=POST, PUT, DELETE
+          filters:
+            - name: AuthFilter        # <--- Matches your Java Class Name
+              args:
+                requiredRole: ADMIN
 
 eureka:
   client:
