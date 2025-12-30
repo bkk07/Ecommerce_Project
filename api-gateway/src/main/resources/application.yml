@@ -71,8 +71,15 @@ spring:
             - name: AuthFilter        # <--- Matches your Java Class Name
               args:
                 requiredRole: ADMIN
-
-
+        # ---------------------------------------------------
+        # 5. Search Service (Public / No Auth)
+        # ---------------------------------------------------
+        - id: search-service
+          uri: lb://SEARCH-SERVICE
+          predicates:
+              - Path=/api/v1/search/**
+              - Method=GET
+      # No filters needed because search is public for everyone
 eureka:
   client:
     service-url:

@@ -42,13 +42,10 @@ public class AuthenticationService {
                 .isEmailVerified(false)
                 .isPhoneVerified(false)
                 .build();
-
         // 2. Save User
         User savedUser = userRepository.save(newUser);
-
         // 3. Generate Token
-        String token = jwtService.generateToken(savedUser.getId().toString(), "ADMIN");
-
+        String token = jwtService.generateToken(savedUser.getId().toString(), "USER");
         // 4. Send Welcome Notification
         Map<String, String> params = new HashMap<>();
         params.put("name", savedUser.getName());
@@ -66,22 +63,29 @@ public class AuthenticationService {
         return UserAuthResponse.builder()
                 .token(token)
                 .userId(savedUser.getId())
-                .role("ADMIN")
+                .role("USER")
                 .build();
     }
 
     public UserAuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new CustomException("Invalid Credentials", HttpStatus.UNAUTHORIZED));
-
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new CustomException("Invalid Credentials", HttpStatus.UNAUTHORIZED);
         }
-        String token = jwtService.generateToken(user.getId().toString(), "ADMIN");
+        if(request.getEmail().equals("admin")){
+        String tokenTemp = jwtService.generateToken(user.getId().toString(), "ADMIN");
+            return UserAuthResponse.builder()
+                    .token(tokenTemp)
+                    .userId(user.getId())
+                    .role("ADMIN")
+                    .build();
+        }
+        String token = jwtService.generateToken(user.getId().toString(), "USER");
         return UserAuthResponse.builder()
                 .token(token)
                 .userId(user.getId())
-                .role("ADMIN")
+                .role("USER")
                 .build();
     }
 

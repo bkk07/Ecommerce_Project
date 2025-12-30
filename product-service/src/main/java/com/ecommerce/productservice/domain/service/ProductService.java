@@ -10,12 +10,14 @@ import com.ecommerce.productservice.domain.repository.OutboxRepository;
 import com.ecommerce.productservice.domain.repository.ProductRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.jspecify.annotations.Nullable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -107,6 +109,10 @@ public class ProductService {
         Product product = productRepo.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
         return mapToResponse(product);
+    }
+    @Cacheable(value = "products", key = "#skuCode")
+    public ProductResponse getProductBySkuCode(String skuCode) {
+        Optional<Product> product = productRepo.findBySkuCode(skuCode);
     }
 
     // (Helper methods for mapping would go here or in a Mapper class)

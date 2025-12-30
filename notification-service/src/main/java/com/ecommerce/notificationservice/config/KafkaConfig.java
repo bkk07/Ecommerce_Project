@@ -24,7 +24,6 @@ public class KafkaConfig {
         factory.setConcurrency(2); // 2 Threads
         return factory;
     }
-
     // Factory for Marketing - Low Concurrency
     @Bean
     public ConcurrentKafkaListenerContainerFactory<String, Object> marketingFactory(ConsumerFactory<String, Object> consumerFactory) {
