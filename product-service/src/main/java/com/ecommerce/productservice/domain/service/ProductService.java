@@ -73,24 +73,30 @@ public class ProductService {
     }
 
     private void saveOutboxEvent(Product product) {
+        List<OutboxEvent> outboxEvents = new java.util.ArrayList<>();
         try {
-            ProductCreatedEvent event = new ProductCreatedEvent(
-                    product.getId(), product.getName(),
-                    product.getCategory().getName(),
-                    product.getVariants().get(0).getPrice()
-            );
+            for (ProductVariant variant : product.getVariants()) {
+                ProductCreatedEvent event = new ProductCreatedEvent(
+                        product.getId(),
+                        //here name and the Description are not required in the future i can remove them first in the common dtos and i  need to delete this also
+                        product.getName(),
+                        variant.getSku(),
+                        product.getDescription(),
+                        variant.getPrice()
+                );
 
-            OutboxEvent outbox = OutboxEvent.builder()
-                    .id(UUID.randomUUID().toString())
-                    .aggregateType("PRODUCT")
-                    .aggregateId(product.getId().toString())
-                    .type("PRODUCT_CREATED")
-                    .payload(objectMapper.writeValueAsString(event))
-                    .createdAt(java.time.LocalDateTime.now())
-                    .processed(false)
-                    .build();
-
-            outboxRepo.save(outbox);
+                OutboxEvent outbox = OutboxEvent.builder()
+                        .id(UUID.randomUUID().toString())
+                        .aggregateType("PRODUCT")
+                        .aggregateId(product.getId().toString())
+                        .type("PRODUCT_CREATED")
+                        .payload(objectMapper.writeValueAsString(event))
+                        .createdAt(java.time.LocalDateTime.now())
+                        .processed(false)
+                        .build();
+                outboxEvents.add(outbox);
+            }
+            outboxRepo.saveAll(outboxEvents);
         } catch (Exception e) {
             throw new RuntimeException("Error serializing event", e);
         }

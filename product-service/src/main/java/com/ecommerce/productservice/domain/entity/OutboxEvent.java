@@ -24,18 +24,15 @@ public class OutboxEvent {
 
     @Column(nullable = false)
     private String aggregateType; // e.g., "PRODUCT"
-
     @Column(nullable = false)
     private String aggregateId;   // e.g., "105" (Product ID)
 
     @Column(nullable = false)
     private String type;          // e.g., "PRODUCT_CREATED"
-
     // Stores the actual event data (JSON) so Kafka can read it later
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "json", nullable = false)
     private String payload;
-
     private LocalDateTime createdAt;
 
     // False = Waiting to be sent to Kafka

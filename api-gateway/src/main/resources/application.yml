@@ -51,6 +51,28 @@ spring:
               args:
                 requiredRole: ADMIN
 
+        ## This is all related to the Inventory Service
+
+        # --- Route C: Public Read Access (GET) ---
+        # "Anyone can browse inventory"
+        - id: inventory-service-read
+          uri: lb://INVENTORY-SERVICE
+          predicates:
+            - Path=/api/v1/inventory/**
+            - Method=GET
+
+        #This one is allowed to the admin
+        - id: inventory-service-write
+          uri: lb://INVENTORY-SERVICE
+          predicates:
+            - Path=/api/v1/inventory/**
+            - Method=POST, PUT, DELETE, PATCH
+          filters:
+            - name: AuthFilter        # <--- Matches your Java Class Name
+              args:
+                requiredRole: ADMIN
+
+
 eureka:
   client:
     service-url:

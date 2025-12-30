@@ -26,7 +26,6 @@ public class Product {
     private String brand;
     private boolean isActive = true;
     private boolean isDeleted = false;
-
     @Version
     private Long version;
     private LocalDateTime createdAt;
