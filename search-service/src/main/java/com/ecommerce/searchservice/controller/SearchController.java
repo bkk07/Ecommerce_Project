@@ -1,5 +1,6 @@
 package com.ecommerce.searchservice.controller;
 
+import com.ecommerce.feigndtos.ProductResponse;
 import com.ecommerce.searchservice.model.ProductDocument;
 import com.ecommerce.searchservice.service.SearchService;
 import lombok.RequiredArgsConstructor;
@@ -18,5 +19,12 @@ public class SearchController {
     @GetMapping
     public List<ProductDocument> searchProducts(@RequestParam String keyword) {
         return searchService.search(keyword);
+    }
+
+    // GET http://localhost:8083/api/v1/search/sku/skuCode
+    @GetMapping("/sku/{skuCode}")
+    public ProductResponse getProductBySkuCode(@PathVariable String skuCode) {
+
+        return searchService.getProductBySkuCode(skuCode);
     }
 }

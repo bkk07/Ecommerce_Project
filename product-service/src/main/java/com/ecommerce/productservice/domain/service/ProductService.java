@@ -110,11 +110,6 @@ public class ProductService {
                 .orElseThrow(() -> new ResourceNotFoundException("Product not found"));
         return mapToResponse(product);
     }
-    @Cacheable(value = "products", key = "#skuCode")
-    public ProductResponse getProductBySkuCode(String skuCode) {
-        Optional<Product> product = productRepo.findBySkuCode(skuCode);
-    }
-
     // (Helper methods for mapping would go here or in a Mapper class)
     // Inside ProductService.java
 

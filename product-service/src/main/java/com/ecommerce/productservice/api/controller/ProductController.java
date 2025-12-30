@@ -32,9 +32,4 @@ public class ProductController {
     public ResponseEntity<ProductResponse> createProduct(@RequestBody @Valid ProductRequest request) {
         return ResponseEntity.ok(productService.createProduct(request));
     }
-    // 3. Get Product (Public + Cached)
-    @GetMapping("/{id}")
-    public ResponseEntity<ProductResponse> getProduct(@PathVariable Long id) {
-        return ResponseEntity.ok(productService.getProductById(id));
-    }
 }

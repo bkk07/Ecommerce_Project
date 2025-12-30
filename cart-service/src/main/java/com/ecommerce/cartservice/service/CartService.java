@@ -1,10 +1,10 @@
 package com.ecommerce.cartservice.service;
 
-import com.ecommerce.cartservice.client.ProductClient;
-import com.ecommerce.cartservice.dto.ProductResponse;
+import com.ecommerce.cartservice.client.SearchClient;
 import com.ecommerce.cartservice.exception.CartException;
 import com.ecommerce.cartservice.model.Cart;
 import com.ecommerce.cartservice.model.CartItem;
+import com.ecommerce.feigndtos.ProductResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -19,13 +19,10 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Slf4j
 public class CartService {
-
     private final RedisTemplate<String, Object> redisTemplate;
-    private final ProductClient productClient;
-
+    private final SearchClient searchClient;
     private static final String CART_KEY_PREFIX = "cart:";
     private static final Duration CART_TTL = Duration.ofDays(30);
-
     // 1. Get Cart
     public Cart getCart(String userId) {
         String key = CART_KEY_PREFIX + userId;
@@ -40,7 +37,6 @@ public class CartService {
         }
         return cart;
     }
-
     // 2. Add Item
     public void addToCart(String userId, String skuCode, Integer quantity) {
         String key = CART_KEY_PREFIX + userId;
@@ -58,7 +54,7 @@ public class CartService {
                 item.setSubTotal(item.getPrice().multiply(BigDecimal.valueOf(item.getQuantity())));
             } else {
                 // Item new: Fetch from Product Service
-                ProductResponse product = productClient.getProductBySku(skuCode);
+                ProductResponse product = searchClient.getProductBySku(skuCode);
 
                 if (product == null) {
                     throw new CartException("Product not found with SKU: " + skuCode);
@@ -83,7 +79,6 @@ public class CartService {
             throw new CartException("Failed to add item. Ensure Product Service is running.");
         }
     }
-
     // 3. Remove Item
     public void removeFromCart(String userId, String skuCode) {
         String key = CART_KEY_PREFIX + userId;
@@ -96,13 +91,11 @@ public class CartService {
             redisTemplate.opsForValue().set(key, cart, CART_TTL);
         }
     }
-
     // 4. Clear Cart
     public void clearCart(String userId) {
         String key = CART_KEY_PREFIX + userId;
         redisTemplate.delete(key);
     }
-
     private void calculateTotal(Cart cart) {
         BigDecimal total = cart.getItems().stream()
                 .map(CartItem::getSubTotal)

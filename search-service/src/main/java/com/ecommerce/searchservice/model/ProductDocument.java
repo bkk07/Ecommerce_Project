@@ -21,19 +21,14 @@ public class ProductDocument {
 
     @Id
     private String id; // This will store the Product ID
-
     @Field(type = FieldType.Text, name = "name")
     private String name;
-
     @Field(type = FieldType.Text, name = "description")
     private String description;
-
     @Field(type = FieldType.Keyword, name = "skuCode")
     private String skuCode;
-
     @Field(type = FieldType.Double, name = "price")
     private BigDecimal price;
-
     @Field(type = FieldType.Boolean, name = "isInStock")
     private boolean isInStock;
 }

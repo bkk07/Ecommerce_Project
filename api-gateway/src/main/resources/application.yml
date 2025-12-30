@@ -80,12 +80,23 @@ spring:
               - Path=/api/v1/search/**
               - Method=GET
       # No filters needed because search is public for everyone
+        #This one is allowed to the admin
+        - id: cart-service-write
+          uri: lb://CART-SERVICE
+          predicates:
+            - Path=/api/v1/cart/**
+            - Method=POST, PUT, DELETE, PATCH, GET
+          filters:
+            - name: AuthFilter        # <--- Matches your Java Class Name
+              args:
+                requiredRole: USER
+
 eureka:
+  instance:
+    prefer-ip-address: true
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
-    register-with-eureka: true
-    fetch-registry: true
 
 logging:
   level:
