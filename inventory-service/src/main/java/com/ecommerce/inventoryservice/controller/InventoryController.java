@@ -43,4 +43,6 @@ public class InventoryController {
         inventoryService.reserveStock(skuCode, quantity);
         return ResponseEntity.ok("Stock reserved for SKU: " + skuCode);
     }
+
+
 }

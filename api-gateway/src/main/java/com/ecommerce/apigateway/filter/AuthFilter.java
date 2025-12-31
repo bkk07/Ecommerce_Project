@@ -86,6 +86,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             ServerHttpRequest modifiedRequest = request.mutate()
                     .header("X-Auth-User-Id", userId)
                     .header("X-Auth-User-Role", role)
+                    .header("X-Auth-Token", token)
                     .build();
 
             return chain.filter(exchange.mutate().request(modifiedRequest).build());
