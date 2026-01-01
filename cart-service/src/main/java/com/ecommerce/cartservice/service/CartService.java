@@ -1,5 +1,7 @@
 package com.ecommerce.cartservice.service;
 
+import com.ecommerce.cart.CartItemResponse;
+import com.ecommerce.cart.CartResponse;
 import com.ecommerce.cartservice.client.SearchClient;
 import com.ecommerce.cartservice.exception.CartException;
 import com.ecommerce.cartservice.model.Cart;
@@ -13,7 +15,9 @@ import org.springframework.stereotype.Service;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -23,8 +27,15 @@ public class CartService {
     private final SearchClient searchClient;
     private static final String CART_KEY_PREFIX = "cart:";
     private static final Duration CART_TTL = Duration.ofDays(30);
+
     // 1. Get Cart
-    public Cart getCart(String userId) {
+    public CartResponse getCart(String userId) {
+        Cart cart = getCartModel(userId);
+        return mapToCartResponse(cart);
+    }
+
+    // Helper method to get the internal Cart model
+    private Cart getCartModel(String userId) {
         String key = CART_KEY_PREFIX + userId;
         Cart cart = (Cart) redisTemplate.opsForValue().get(key);
 
@@ -37,10 +48,11 @@ public class CartService {
         }
         return cart;
     }
+
     // 2. Add Item
     public void addToCart(String userId, String skuCode, Integer quantity) {
         String key = CART_KEY_PREFIX + userId;
-        Cart cart = getCart(userId);
+        Cart cart = getCartModel(userId);
 
         try {
             Optional<CartItem> existingItem = cart.getItems().stream()
@@ -79,10 +91,11 @@ public class CartService {
             throw new CartException("Failed to add item. Ensure Product Service is running.");
         }
     }
+
     // 3. Remove Item
     public void removeFromCart(String userId, String skuCode) {
         String key = CART_KEY_PREFIX + userId;
-        Cart cart = getCart(userId);
+        Cart cart = getCartModel(userId);
 
         boolean removed = cart.getItems().removeIf(item -> item.getSkuCode().equals(skuCode));
 
@@ -91,15 +104,40 @@ public class CartService {
             redisTemplate.opsForValue().set(key, cart, CART_TTL);
         }
     }
+
     // 4. Clear Cart
     public void clearCart(String userId) {
         String key = CART_KEY_PREFIX + userId;
         redisTemplate.delete(key);
     }
+
     private void calculateTotal(Cart cart) {
         BigDecimal total = cart.getItems().stream()
                 .map(CartItem::getSubTotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         cart.setTotalAmount(total);
+    }
+
+    private CartResponse mapToCartResponse(Cart cart) {
+        CartResponse response = new CartResponse();
+        response.setUserId(cart.getUserId());
+        response.setTotalAmount(cart.getTotalAmount());
+
+        List<CartItemResponse> itemResponses = cart.getItems().stream()
+                .map(this::mapToCartItemResponse)
+                .collect(Collectors.toList());
+        
+        response.setItems(itemResponses);
+        return response;
+    }
+
+    private CartItemResponse mapToCartItemResponse(CartItem item) {
+        CartItemResponse response = new CartItemResponse();
+        response.setSkuCode(item.getSkuCode());
+        response.setProductName(item.getProductName());
+        response.setQuantity(item.getQuantity());
+        response.setPrice(item.getPrice());
+        response.setSubTotal(item.getSubTotal());
+        return response;
     }
 }

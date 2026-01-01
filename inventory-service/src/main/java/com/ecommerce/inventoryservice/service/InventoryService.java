@@ -58,4 +58,22 @@ public class InventoryService {
         event.setAvailable(inventory.getAvailableStock() > 0);
         inventoryEventProducer.sendInventoryUpdate(event);
     }
+
+    @Transactional
+    public void releaseStock(String skuCode, Integer quantity) {
+        Inventory inventory = inventoryRepository.findBySkuCode(skuCode)
+                .orElseThrow(() -> new InventoryNotFoundException(skuCode));
+
+        if (inventory.getReservedQuantity() < quantity) {
+            throw new IllegalArgumentException("Cannot release more stock than reserved for SKU: " + skuCode);
+        }
+
+        inventory.setReservedQuantity(inventory.getReservedQuantity() - quantity);
+        inventoryRepository.save(inventory);
+        InventoryUpdatedEvent event = new InventoryUpdatedEvent();
+        event.setSkuCode(skuCode);
+        event.setNewQuantity(inventory.getQuantity());
+        event.setAvailable(inventory.getAvailableStock() > 0);
+        inventoryEventProducer.sendInventoryUpdate(event);
+    }
 }

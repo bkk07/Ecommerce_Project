@@ -1,7 +1,7 @@
 package com.ecommerce.cartservice.controller;
 
+import com.ecommerce.cart.CartResponse;
 import com.ecommerce.cartservice.dto.CartRequest;
-import com.ecommerce.cartservice.model.Cart;
 import com.ecommerce.cartservice.service.CartService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,9 +19,10 @@ public class CartController {
 
     @GetMapping
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<Cart> getCart(@RequestHeader("X-Auth-User-Id") String userId) {
+    public ResponseEntity<CartResponse> getCart(@RequestHeader("X-Auth-User-Id") String userId) {
         return ResponseEntity.ok(cartService.getCart(userId));
     }
+
     @PostMapping("/add")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<String> addToCart(

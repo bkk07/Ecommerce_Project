@@ -14,7 +14,6 @@ public class RedisConfig {
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
-
         // Use String for Keys (e.g., "cart:123")
         template.setKeySerializer(new StringRedisSerializer());
 

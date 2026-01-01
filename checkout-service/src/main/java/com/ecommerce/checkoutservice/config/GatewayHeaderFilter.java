@@ -1,4 +1,4 @@
-package com.ecommerce.cartservice.config;
+package com.ecommerce.checkoutservice.config;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -22,14 +22,11 @@ public class GatewayHeaderFilter extends OncePerRequestFilter {
 
         System.out.println("Processing request: " + request.getMethod() + " " + request.getRequestURI());
         
-        // Debug: Print all headers
         Enumeration<String> headerNames = request.getHeaderNames();
         while (headerNames.hasMoreElements()) {
             String headerName = headerNames.nextElement();
             System.out.println("Header: " + headerName + " = " + request.getHeader(headerName));
         }
-
-        // 1. Read Headers from Gateway (Try both standard and Auth variants)
         String userId = request.getHeader("X-User-Id");
         if (userId == null) userId = request.getHeader("X-Auth-User-Id");
         
@@ -38,13 +35,8 @@ public class GatewayHeaderFilter extends OncePerRequestFilter {
 
         System.out.println("Resolved User ID: " + userId + ", Role: " + userRole);
 
-        // 2. Validate (Ensure headers exist)
         if (userId != null && userRole != null) {
-
-            // 3. Format Role (Spring Security expects "ROLE_ADMIN", not just "ADMIN")
             UsernamePasswordAuthenticationToken auth = getUsernamePasswordAuthenticationToken(userRole, userId);
-
-            // 6. Set Context
             SecurityContextHolder.getContext().setAuthentication(auth);
         }
 

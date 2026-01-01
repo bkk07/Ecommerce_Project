@@ -61,7 +61,6 @@ spring:
             - Path=/api/v1/inventory/**
             - Method=GET
 
-        #This one is allowed to the admin
         - id: inventory-service-write
           uri: lb://INVENTORY-SERVICE
           predicates:
@@ -70,7 +69,7 @@ spring:
           filters:
             - name: AuthFilter        # <--- Matches your Java Class Name
               args:
-                requiredRole: ADMIN
+                requiredRole: ADMIN,USER
         # ---------------------------------------------------
         # 5. Search Service (Public / No Auth)
         # ---------------------------------------------------

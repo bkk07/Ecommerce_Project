@@ -1,15 +1,10 @@
 package com.ecommerce.checkoutservice.dto;
-
+import com.ecommerce.checkout.CheckoutItem;
 import lombok.Data;
 import java.util.List;
-
 @Data
 public class InitiateCheckoutRequest {
-    private String userId;
-
-    // Optional: Only present if buying from cart
-    private String cartId;
-
-    // Optional: Only present if Direct Buy
+    private Long userId; // Needed to pass to Order Service
+    private boolean cartId;
     private List<CheckoutItem> items;
 }

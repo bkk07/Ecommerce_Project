@@ -1,5 +1,6 @@
 package com.ecommerce.inventoryservice.controller;
 
+import com.ecommerce.inventory.StockItem;
 import com.ecommerce.inventoryservice.service.InventoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -7,6 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/inventory")
@@ -34,8 +37,9 @@ public class InventoryController {
         inventoryService.updateStock(skuCode, quantity);
         return ResponseEntity.ok("Stock updated for SKU: " + skuCode);
     }
+
     @PostMapping("/reserve/{skuCode}")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<String> reserveStock(
             @PathVariable String skuCode,
             @RequestParam Integer quantity) {
@@ -43,6 +47,26 @@ public class InventoryController {
         inventoryService.reserveStock(skuCode, quantity);
         return ResponseEntity.ok("Stock reserved for SKU: " + skuCode);
     }
-
-
+    @PostMapping("/release/{skuCode}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<String> releaseStock(
+            @PathVariable String skuCode,
+            @RequestParam Integer quantity) {
+        log.info("Releasing stock for SKU: {} with quantity: {}", skuCode, quantity);
+        inventoryService.releaseStock(skuCode, quantity);
+        return ResponseEntity.ok("Stock released for SKU: " + skuCode);
+    }
+    @PostMapping("/lock")
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    void lockStock(@RequestBody List<StockItem> items){
+        for(StockItem item:items){
+            inventoryService.reserveStock(item.getSku(),item.getQuantity());
+        }
+    }
+    @PostMapping("/release")
+    void releaseStock(@RequestBody List<StockItem> items){
+        for(StockItem item:items){
+            inventoryService.releaseStock(item.getSku(),item.getQuantity());
+        }
+    }
 }
