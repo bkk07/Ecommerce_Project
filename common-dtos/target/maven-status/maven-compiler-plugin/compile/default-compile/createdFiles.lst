@@ -1,0 +1,14 @@
+com\ecommerce\payment\PaymentCreateRequest.class
+com\ecommerce\cart\CartItemResponse.class
+com\ecommerce\product\ProductUpdatedEvent.class
+com\ecommerce\common\KafkaProperties.class
+com\ecommerce\checkout\CheckoutItem.class
+com\ecommerce\inventory\InventoryUpdatedEvent.class
+com\ecommerce\Common.class
+com\ecommerce\Main.class
+com\ecommerce\payment\VerifyPaymentRequest.class
+com\ecommerce\cart\CartResponse.class
+com\ecommerce\inventory\StockItem.class
+com\ecommerce\feigndtos\ProductResponse.class
+com\ecommerce\inventory\StockUpdate.class
+com\ecommerce\product\ProductCreatedEvent.class

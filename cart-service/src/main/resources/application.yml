@@ -1,0 +1,31 @@
+server:
+  port: 8090
+
+spring:
+  application:
+    name: cart-service
+
+  # Redis Connection
+  data:
+    redis:
+      host: 127.0.0.1 # Changed from localhost to force IPv4
+      port: 6379
+      password: "" # Set password if your Redis requires it
+
+  # Kafka Connection
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: cart-group
+      auto-offset-reset: latest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*" # Allow all DTOs
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/

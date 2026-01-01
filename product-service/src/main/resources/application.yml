@@ -1,0 +1,41 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      # Use String for Keys (Product ID)
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Use String for Values (We send JSON strings from the Outbox)
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Reliability Settings
+      retries: 3
+      acks: all
+  datasource:
+    url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: Kiran@210800
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update          # dev: update | prod: validate
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+
+  application:
+    name: product-service
+server:
+  port: 8083
+
+eureka:
+  instance:
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+cloudinary:
+  url: ${CLOUDINARY_URL}

@@ -1,0 +1,46 @@
+spring:
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: product-events-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      # Use String for Keys (Product ID)
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Use String for Values (We send JSON strings from the Outbox)
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      # Reliability Settings
+      retries: 3
+      acks: all
+  datasource:
+    url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&serverTimezone=UTC
+    username: root
+    password: Kiran@210800
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+
+  jpa:
+    hibernate:
+      ddl-auto: update          # dev: update | prod: validate
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+
+  application:
+    name:
+        inventory-service
+server:
+  port: 8084
+eureka:
+    client:
+        service-url:
+            defaultZone: http://localhost:8761/eureka
+        register-with-eureka: true
+        fetch-registry: true
+    instance:
+        prefer-ip-address: true
