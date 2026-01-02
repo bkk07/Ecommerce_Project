@@ -1,13 +1,11 @@
 package com.ecommerce.paymentservice.service;
 import com.ecommerce.payment.PaymentCreateRequest;
+import com.ecommerce.payment.PaymentSuccessEvent;
 import com.ecommerce.payment.VerifyPaymentRequest;
-import com.ecommerce.paymentservice.cleint.CheckoutClient;
-import com.ecommerce.paymentservice.dto.CreateOrderResponse;
 import com.ecommerce.paymentservice.entity.Payment;
 import com.ecommerce.paymentservice.enums.PaymentMethodType;
 import com.ecommerce.paymentservice.enums.PaymentStatus;
 import com.ecommerce.paymentservice.kafka.PaymentEventProducer;
-import com.ecommerce.paymentservice.kafka.PaymentSuccessEvent;
 import com.ecommerce.paymentservice.repository.PaymentRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +19,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
 
 @Service
@@ -30,7 +30,6 @@ public class PaymentService {
 
     private final RazorpayClient razorpayClient;
     private final PaymentRepository paymentRepository;
-    private final CheckoutClient checkoutClient;
     private final PaymentEventProducer eventProducer;
     private final ObjectMapper objectMapper;
 
@@ -58,6 +57,18 @@ public class PaymentService {
             orderRequest.put("receipt", "order_rcptid_" + System.currentTimeMillis());
 
             Order order = razorpayClient.orders.create(orderRequest);
+
+            // Save initial payment record
+            Payment payment = Payment.builder()
+                    .razorpayOrderId(order.get("id"))
+                    .amount(new BigDecimal(request.getAmount()))
+                    .userId(request.getUserId())
+                    .currency("INR")
+                    .status(PaymentStatus.CREATED)// Assuming request has checkoutId
+                    .build();
+
+            paymentRepository.save(payment);
+
             return order.get("id");
 
         } catch (Exception e) {
@@ -75,17 +86,25 @@ public class PaymentService {
                 .orElseThrow(() -> new RuntimeException("Order not found"));
 
         try {
+
             JSONObject options = new JSONObject();
+            String generatedSignature = calculateSignature(req.getRazorpayOrderId(),req.getRazorpayPaymentId());
             options.put("razorpay_order_id", req.getRazorpayOrderId());
             options.put("razorpay_payment_id", req.getRazorpayPaymentId());
-            options.put("razorpay_signature", req.getRazorpaySignature());
-
+            options.put("razorpay_signature", generatedSignature);
             boolean isValid = Utils.verifyPaymentSignature(options, keySecret);
             if (isValid) {
                 payment.setRazorpayPaymentId(req.getRazorpayPaymentId());
                 payment.setRazorpaySignature(req.getRazorpaySignature());
                 payment.setStatus(PaymentStatus.VERIFIED);
                 paymentRepository.save(payment);
+
+
+                PaymentSuccessEvent paymentSuccessEvent = new PaymentSuccessEvent();
+                paymentSuccessEvent.setPaymentId(req.getRazorpayPaymentId());
+                paymentSuccessEvent.setOrderId(req.getRazorpayOrderId());
+                paymentSuccessEvent.setPaymentMethod("");
+                eventProducer.publishPaymentSuccess(paymentSuccessEvent);
             } else {
                 throw new RuntimeException("Signature verification failed");
             }
@@ -98,6 +117,7 @@ public class PaymentService {
      * Step 3: Webhook Processing (Final Source of Truth)
      * Captures specific payment methods (UPI/Card/etc)
      */
+
     @Transactional
     public void processWebhook(String payload, String signature) {
         try {
@@ -133,15 +153,15 @@ public class PaymentService {
                 paymentRepository.save(payment);
 
                 // 5. Notify Ecosystem (Saga)
-                PaymentSuccessEvent successEvent = new PaymentSuccessEvent(
-                        payment.getCheckoutId(),
-                        paymentId,
-                        payment.getAmount().toString(),
-                        payment.getMethodType().toString()
-                );
-                eventProducer.publishPaymentSuccess(successEvent);
+//                PaymentSuccessEvent successEvent = new PaymentSuccessEvent(
+//                        payment.getCheckoutId(),
+//                        paymentId,
+//                        payment.getAmount().toString(),
+//                        payment.getMethodType().toString()
+//                );
+//                eventProducer.publishPaymentSuccess(successEvent);
 
-                log.info("Payment successfully captured and event published for checkout: {}", payment.getCheckoutId());
+//                log.info("Payment successfully captured and event published for checkout: {}", payment.getCheckoutId());
             }
 
         } catch (Exception e) {
@@ -179,6 +199,28 @@ public class PaymentService {
                 break;
             default:
                 payment.setMethodType(PaymentMethodType.UNKNOWN);
+        }
+
+    }
+
+    private String calculateSignature(String orderId, String paymentId) {
+        try {
+            String data = orderId + "|" + paymentId;
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec secretKeySpec = new SecretKeySpec(keySecret.getBytes(), "HmacSHA256");
+            mac.init(secretKeySpec);
+            byte[] hash = mac.doFinal(data.getBytes());
+
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return "Error calculating signature";
         }
     }
 }

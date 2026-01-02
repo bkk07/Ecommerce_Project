@@ -12,9 +12,7 @@ import java.util.List;
 @RequestMapping("/api/orders")
 @RequiredArgsConstructor
 public class OrderController {
-
     private final OrderService orderService;
-
     @GetMapping("/user/{userId}")
     public ResponseEntity<List<OrderResponse>> getMyOrders(@PathVariable String userId) {
         return ResponseEntity.ok(orderService.getUserOrders(userId));

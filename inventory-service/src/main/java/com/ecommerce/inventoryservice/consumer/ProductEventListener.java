@@ -9,7 +9,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Component;
 
-import static com.ecommerce.common.KafkaProperties.PRODUCT_EVENTS_GROUP;
 import static com.ecommerce.common.KafkaProperties.PRODUCT_EVENTS_TOPIC;
 
 @Component
@@ -20,7 +19,7 @@ public class ProductEventListener {
     private final InventoryService inventoryService;
     private final ObjectMapper objectMapper;
 
-    @KafkaListener(topics = PRODUCT_EVENTS_TOPIC, groupId = PRODUCT_EVENTS_GROUP)
+    @KafkaListener(topics = PRODUCT_EVENTS_TOPIC, groupId ="inventory-event-group")
     public void handleProductCreated(String eventString) {
         try {
             ProductCreatedEvent event = objectMapper.readValue(eventString, ProductCreatedEvent.class);

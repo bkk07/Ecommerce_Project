@@ -8,7 +8,11 @@ C:\Users\reach\OneDrive\Desktop\Ecommerce\common-dtos\src\main\java\com\ecommerc
 C:\Users\reach\OneDrive\Desktop\Ecommerce\common-dtos\src\main\java\com\ecommerce\inventory\StockItem.java
 C:\Users\reach\OneDrive\Desktop\Ecommerce\common-dtos\src\main\java\com\ecommerce\inventory\StockUpdate.java
 C:\Users\reach\OneDrive\Desktop\Ecommerce\common-dtos\src\main\java\com\ecommerce\Main.java
+C:\Users\reach\OneDrive\Desktop\Ecommerce\common-dtos\src\main\java\com\ecommerce\order\AddressDTO.java
+C:\Users\reach\OneDrive\Desktop\Ecommerce\common-dtos\src\main\java\com\ecommerce\order\OrderCreatedEvent.java
+C:\Users\reach\OneDrive\Desktop\Ecommerce\common-dtos\src\main\java\com\ecommerce\order\OrderItemDto.java
 C:\Users\reach\OneDrive\Desktop\Ecommerce\common-dtos\src\main\java\com\ecommerce\payment\PaymentCreateRequest.java
+C:\Users\reach\OneDrive\Desktop\Ecommerce\common-dtos\src\main\java\com\ecommerce\payment\PaymentSuccessEvent.java
 C:\Users\reach\OneDrive\Desktop\Ecommerce\common-dtos\src\main\java\com\ecommerce\payment\VerifyPaymentRequest.java
 C:\Users\reach\OneDrive\Desktop\Ecommerce\common-dtos\src\main\java\com\ecommerce\product\ProductCreatedEvent.java
 C:\Users\reach\OneDrive\Desktop\Ecommerce\common-dtos\src\main\java\com\ecommerce\product\ProductUpdatedEvent.java

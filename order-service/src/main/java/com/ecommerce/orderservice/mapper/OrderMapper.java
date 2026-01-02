@@ -8,13 +8,11 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.stream.Collectors;
-
 @Component
 public class OrderMapper {
-
     public OrderResponse mapToDto(Order order) {
         return OrderResponse.builder()
-                .orderNumber(order.getOrderNumber())
+                .orderNumber(order.getOrderId())
                 .status(order.getStatus().name())
                 .totalAmount(order.getTotalAmount())
                 .orderDate(order.getCreatedAt())
@@ -22,7 +20,6 @@ public class OrderMapper {
                 .items(mapToItemDtos(order.getItems()))
                 .build();
     }
-
     private List<OrderItemResponse> mapToItemDtos(List<OrderItem> items) {
         return items.stream()
                 .map(item -> OrderItemResponse.builder()

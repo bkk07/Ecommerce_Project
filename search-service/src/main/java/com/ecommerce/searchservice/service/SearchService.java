@@ -76,7 +76,7 @@ public class SearchService {
         }
         ProductDocument productDocument = searchHit.getContent();
         ProductResponse response = new ProductResponse();
-        response.setId(Long.valueOf(productDocument.getId()));
+        response.setId(productDocument.getProductId());
         response.setName(productDocument.getName());
         response.setDescription(productDocument.getDescription());
         response.setPrice(productDocument.getPrice());

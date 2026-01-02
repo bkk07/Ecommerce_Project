@@ -20,7 +20,10 @@ import java.math.BigDecimal;
 public class ProductDocument {
 
     @Id
-    private String id; // This will store the Product ID
+    private String id; // This will store the SKU Code as unique identifier
+    @Field(type = FieldType.Long, name = "productId")
+    private Long productId;
+
     @Field(type = FieldType.Text, name = "name")
     private String name;
     @Field(type = FieldType.Text, name = "description")

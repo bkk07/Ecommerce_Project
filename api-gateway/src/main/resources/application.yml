@@ -6,6 +6,24 @@ spring:
     name: api-gateway
   cloud:
     gateway:
+      cloud:
+        gateway:
+          globalcors:
+            corsConfigurations:
+              '[/**]':
+                allowedOrigins:
+                  - "http://localhost:63342"
+                allowedMethods:
+                  - GET
+                  - POST
+                  - PUT
+                  - DELETE
+                  - OPTIONS
+                allowedHeaders:
+                  - "*"
+                allowCredentials: true
+
+
       discovery:
         locator:
           enabled: true
@@ -89,6 +107,35 @@ spring:
             - name: AuthFilter        # <--- Matches your Java Class Name
               args:
                 requiredRole: USER
+        - id: checkout-service-write
+          uri: lb://CHECKOUT-SERVICE
+          predicates:
+            - Path=/api/checkout/**
+            - Method=POST, PUT, DELETE, PATCH, GET
+          filters:
+            - name: AuthFilter        # <--- Matches your Java Class Name
+              args:
+                requiredRole: USER
+
+        - id: payment-service
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/payments/**
+            - Method=POST, PUT, DELETE, PATCH, GET
+
+        - id: order-service
+          uri: lb://ORDER-SERVICE
+          predicates:
+            - Path=/api/orders/**
+            - Method=POST, PUT, DELETE, PATCH, GET
+
+
+
+
+#          filters:
+#            - name: AuthFilter        # <--- Matches your Java Class Name
+#              args:
+#                requiredRole: USER
 
 eureka:
   instance:

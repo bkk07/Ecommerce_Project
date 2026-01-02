@@ -16,13 +16,9 @@ import java.util.List;
 public class Order {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String orderId;
 
-    // Use String for UUIDs to prevent enumeration attacks
-    private String orderNumber;
 
-    // Critical: Link to Payment Service for traceability
     private String paymentId;
 
     private String userId;

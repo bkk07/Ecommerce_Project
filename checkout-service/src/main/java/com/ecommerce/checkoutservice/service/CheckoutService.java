@@ -6,12 +6,13 @@ import com.ecommerce.checkoutservice.dto.*;
 import com.ecommerce.checkoutservice.entity.CheckoutSession;
 import com.ecommerce.checkoutservice.exception.Exceptions;
 import com.ecommerce.checkoutservice.kafka.KafkaEventPublisher;
-import com.ecommerce.checkoutservice.kafka.OrderPlacedEvent;
 import com.ecommerce.checkoutservice.openfeign.CartClient;
 import com.ecommerce.checkoutservice.openfeign.InventoryClient;
 import com.ecommerce.checkoutservice.openfeign.PaymentClient;
 import com.ecommerce.checkoutservice.repository.CheckoutSessionRepository;
 import com.ecommerce.inventory.StockItem;
+import com.ecommerce.order.OrderCreatedEvent;
+import com.ecommerce.order.OrderItemDto;
 import com.ecommerce.payment.PaymentCreateRequest;
 import com.ecommerce.payment.VerifyPaymentRequest;
 import lombok.RequiredArgsConstructor;
@@ -47,7 +48,6 @@ public class CheckoutService {
         } else {
             itemsToBuy = request.getItems();
         }
-
         if (itemsToBuy == null || itemsToBuy.isEmpty()) {
             throw new IllegalArgumentException("No items to checkout");
         }
@@ -73,15 +73,20 @@ public class CheckoutService {
                     .status("PENDING")
                     .build();
 
+
             sessionRepository.save(session);
 
             // 6. Create Shadow Key (15 mins)
             String shadowKey = SHADOW_KEY_PREFIX + razorpayOrderId;
             redisTemplate.opsForValue().set(shadowKey, "dummy");
             redisTemplate.expire(shadowKey, 15, TimeUnit.MINUTES);
-
+            OrderCreatedEvent orderCreatedEvent = new OrderCreatedEvent();
+            orderCreatedEvent.setOrderId(razorpayOrderId);
+            orderCreatedEvent.setItems(mapToOrderItemDto(itemsToBuy));
+            orderCreatedEvent.setTotalAmount(totalAmount);
+            orderCreatedEvent.setUserId(String.valueOf(request.getUserId()));
+            eventPublisher.publishOrderEvent(orderCreatedEvent);
             return new CheckoutResponse(razorpayOrderId, totalAmount, "INR", "CREATED");
-
         } catch (Exception e) {
             // Rollback Stock if payment creation fails
             inventoryClient.releaseStock(mapToStockItems(itemsToBuy));
@@ -107,8 +112,6 @@ public class CheckoutService {
         // 1. Get Session from Redis
         CheckoutSession session = sessionRepository.findById(callback.getRazorpayOrderId())
                 .orElseThrow(() -> new Exceptions.SessionNotFoundException("Session Expired"));
-
-        // 2. Verify Signature (Payment Service)
         boolean isValid = paymentClient.verifyPayment(new VerifyPaymentRequest(
                 callback.getRazorpayOrderId(),
                 callback.getRazorpayPaymentId(),
@@ -122,16 +125,6 @@ public class CheckoutService {
             redisTemplate.delete(SHADOW_KEY_PREFIX + session.getOrderId());
             throw new Exceptions.PaymentFailedException("Signature Verification Failed");
         }
-        
-        // 3. Publish Event (Success)
-        OrderPlacedEvent event = new OrderPlacedEvent(
-                session.getOrderId(),
-                session.getUserId(), // Now we have userId
-                session.getItems(),
-                session.getTotalAmount()
-        );
-        eventPublisher.publishOrderEvent(event);
-
         if (session.isCartId()) {
             try {
                 cartClient.clearCart();
@@ -154,5 +147,17 @@ public class CheckoutService {
             stockItems.add(stockItem);
         }
         return stockItems;
+    }
+    private List<OrderItemDto> mapToOrderItemDto(List<CheckoutItem> items){
+        List<OrderItemDto> orderItemDtos = new ArrayList<>();
+        for(CheckoutItem item:items){
+            OrderItemDto orderItemDto = new OrderItemDto();
+            orderItemDto.setSkuCode(item.getSkuCode());
+            orderItemDto.setQuantity(item.getQuantity());
+            orderItemDto.setProductName(item.getProductName());
+            orderItemDto.setPrice(item.getPrice());
+            orderItemDtos.add(orderItemDto);
+        }
+        return  orderItemDtos;
     }
 }

@@ -16,4 +16,7 @@ public class KafkaProperties {
     public static final String PAYMENT_EVENTS_TOPIC = "payment-events";
     public static  final String PAYMENT_EVENTS_GROUP = "payment-event-group";
 
+
+    public static final String PAYMENTS_EVENTS_SUCCESS_TOPIC = "payment-success-event";
+    public static final String ORDER_CREATED_EVENTS_TOPIC = "order-created-event";
 }

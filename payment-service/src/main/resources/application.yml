@@ -1,8 +1,15 @@
 spring:
+  application:
+    name: payment-service
+  datasource:
+    url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&serverTimezone=UTC
+    username: root
+    password: Kiran@210800
+    driver-class-name: com.mysql.cj.jdbc.Driver
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
-      group-id: inventory-event-group
+      group-id: product-events-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
@@ -10,16 +17,10 @@ spring:
       # Use String for Keys (Product ID)
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       # Use String for Values (We send JSON strings from the Outbox)
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       # Reliability Settings
       retries: 3
       acks: all
-  datasource:
-    url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&serverTimezone=UTC
-    username: root
-    password: Kiran@210800
-    driver-class-name: com.mysql.cj.jdbc.Driver
-
 
   jpa:
     hibernate:
@@ -30,17 +31,18 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
-
-  application:
-    name:
-        inventory-service
 server:
-  port: 8084
+  port: 8088
 eureka:
-    client:
-        service-url:
-            defaultZone: http://localhost:8761/eureka
-        register-with-eureka: true
-        fetch-registry: true
-    instance:
-        prefer-ip-address: true
+  instance:
+    prefer-ip-address: true
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+razorpay:
+  key:
+    id: rzp_test_RyEfqhx8DTtt9q
+    secret: h1qT6WLZoUmslnEvF7gz1krg
+  webhook:
+    secret:

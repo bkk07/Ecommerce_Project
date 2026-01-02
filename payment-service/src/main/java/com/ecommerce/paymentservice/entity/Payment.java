@@ -20,10 +20,9 @@ public class Payment {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    private Long userId;
 
-    @Column(nullable = false, unique = true)
-    private String checkoutId;
+    @Column(nullable = false)
+    private Long userId;
 
     @Column(nullable = false, unique = true)
     private String razorpayOrderId;
@@ -51,6 +50,7 @@ public class Payment {
     private String cardLast4;   // For Cards
     private String email;       // Payer Email
     private String contact;     // Payer Phone
+
 
     @Version
     private Integer version;

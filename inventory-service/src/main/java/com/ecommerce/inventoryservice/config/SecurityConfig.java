@@ -16,6 +16,7 @@ public class SecurityConfig {
         System.out.println("Configuring SecurityFilterChain... I am in SecurityConfig");
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // No sessions
 
                 // 🚀 Add our Custom Filter BEFORE the standard Spring Security filter
@@ -23,7 +24,7 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
                         // Allow public access to GET endpoints (as discussed)
-//                        .requestMatchers(HttpMethod.GET, "/api/v1/inventory/**", "/api/v1/inventory/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/inventory/**", "/api/v1/inventory/**").permitAll()
                         // All other requests must have valid headers (checked by filter)
                         .anyRequest().authenticated()
                 );

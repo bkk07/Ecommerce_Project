@@ -4,19 +4,21 @@ server:
 spring:
   application:
     name: checkout-service
-
   # Redis Connection
   data:
     redis:
       host: 127.0.0.1 # Changed from localhost to force IPv4
-      port: 6379
+      port: 6380
       password: "" # Set password if your Redis requires it
 
   # Kafka Connection
   kafka:
     bootstrap-servers: localhost:9092
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
     consumer:
-      group-id: cart-group
+      group-id: checkout-group
       auto-offset-reset: latest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer

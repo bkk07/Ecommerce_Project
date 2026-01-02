@@ -10,17 +10,21 @@
         <module name="common-dtos" />
         <module name="eureka" />
       </profile>
-      <profile name="Annotation profile for search-service" enabled="true">
+      <profile name="Annotation profile for order-service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.42/lombok-1.18.42.jar" />
         </processorPath>
-        <module name="product-service" />
-        <module name="user-service" />
+        <module name="cart-service" />
+        <module name="payment-service" />
+        <module name="checkout-service" />
         <module name="inventory-service" />
         <module name="search-service" />
+        <module name="product-service" />
+        <module name="order-service" />
+        <module name="user-service" />
         <module name="notification-service" />
       </profile>
     </annotationProcessing>
@@ -28,9 +32,13 @@
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="api-gateway" options="-parameters" />
+      <module name="cart-service" options="-parameters" />
+      <module name="checkout-service" options="-parameters" />
       <module name="eureka" options="-parameters" />
       <module name="inventory-service" options="-parameters" />
       <module name="notification-service" options="-parameters" />
+      <module name="order-service" options="-parameters" />
+      <module name="payment-service" options="-parameters" />
       <module name="product-service" options="-parameters" />
       <module name="search-service" options="-parameters" />
       <module name="user-service" options="-parameters" />

@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.http.server.reactive.ServerHttpResponse;
@@ -14,6 +15,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Component
@@ -68,7 +70,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             }
 
             // 3. Validate Token
-            String token = authHeader.substring(7);
+            String token = authHeader.substring(7).trim();
             if (!jwtUtil.validateToken(token)) {
                 return onError(exchange, "Invalid or Expired Token", HttpStatus.UNAUTHORIZED);
             }
@@ -77,9 +79,15 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             String role = jwtUtil.extractRole(token);
             String userId = jwtUtil.extractUserId(token);
 
-            if (config.getRequiredRole() != null && !config.getRequiredRole().equalsIgnoreCase(role)) {
-                logger.error("Access Denied. Required: {}, Found: {}", config.getRequiredRole(), role);
-                return onError(exchange, "Insufficient permissions", HttpStatus.FORBIDDEN);
+            if (config.getRequiredRole() != null) {
+                boolean hasAccess = Arrays.stream(config.getRequiredRole().split(","))
+                        .map(String::trim)
+                        .anyMatch(requiredRole -> requiredRole.equalsIgnoreCase(role));
+
+                if (!hasAccess) {
+                    logger.error("Access Denied. Required: {}, Found: {}", config.getRequiredRole(), role);
+                    return onError(exchange, "Insufficient permissions", HttpStatus.FORBIDDEN);
+                }
             }
 
             // 5. Forward with New Headers

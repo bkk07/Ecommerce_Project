@@ -16,6 +16,7 @@ public class SecurityConfig {
         System.out.println("Configuring SecurityFilterChain... I am in SecurityConfig");
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // No sessions
 
                 // 🚀 Add our Custom Filter BEFORE the standard Spring Security filter
