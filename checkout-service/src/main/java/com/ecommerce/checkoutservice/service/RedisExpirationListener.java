@@ -1,18 +1,13 @@
 package com.ecommerce.checkoutservice.service;
 
-import com.ecommerce.checkout.CheckoutItem;
 import com.ecommerce.checkoutservice.entity.CheckoutSession;
-import com.ecommerce.checkoutservice.openfeign.InventoryClient;
 import com.ecommerce.checkoutservice.repository.CheckoutSessionRepository;
-import com.ecommerce.inventory.StockItem;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -21,7 +16,6 @@ import java.util.Optional;
 public class RedisExpirationListener implements MessageListener {
 
     private final CheckoutSessionRepository sessionRepository;
-    private final InventoryClient inventoryClient;
     private static final String SHADOW_KEY_PREFIX = "shadow:";
 
     @Override
@@ -37,32 +31,12 @@ public class RedisExpirationListener implements MessageListener {
             Optional<CheckoutSession> sessionOpt = sessionRepository.findById(orderId);
 
             if (sessionOpt.isPresent()) {
-                CheckoutSession session = sessionOpt.get();
-                log.info("Releasing stock for expired session: {}", orderId);
-
-                // Release Stock
-                try {
-                    inventoryClient.releaseStock(mapToStockItems(session.getItems()));
-                } catch (Exception e) {
-                    log.error("Failed to release stock for expired session: {}", orderId, e);
-                }
-
+                log.info("Session expired for: {}", orderId);
                 // Delete the Data Key
                 sessionRepository.deleteById(orderId);
             } else {
                 log.warn("Data key not found for expired shadow key: {}", orderId);
             }
         }
-    }
-
-    private List<StockItem> mapToStockItems(List<CheckoutItem> items){
-        List<StockItem> stockItems = new ArrayList<>();
-        for(CheckoutItem item:items) {
-            StockItem stockItem = new StockItem();
-            stockItem.setSku(item.getSkuCode());
-            stockItem.setQuantity(item.getQuantity());
-            stockItems.add(stockItem);
-        }
-        return stockItems;
     }
 }

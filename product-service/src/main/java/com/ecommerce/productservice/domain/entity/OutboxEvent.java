@@ -10,7 +10,7 @@ import org.hibernate.type.SqlTypes;
 import java.time.LocalDateTime;
 
 @Entity // <--- This marks it as a Database Table
-@Table(name = "outbox_events", indexes = {
+@Table(name = "product_outbox_events", indexes = {
         // Index helps the Poller find unprocessed events fast
         @Index(name = "idx_outbox_unprocessed", columnList = "processed, created_at")
 })
@@ -22,17 +22,20 @@ public class OutboxEvent {
     @Id
     private String id;
 
-    @Column(nullable = false)
+    @Column(name = "aggregate_type", nullable = false)
     private String aggregateType; // e.g., "PRODUCT"
-    @Column(nullable = false)
+
+    @Column(name = "aggregate_id", nullable = false)
     private String aggregateId;   // e.g., "105" (Product ID)
 
-    @Column(nullable = false)
+    @Column(name = "event_type", nullable = false)
     private String type;          // e.g., "PRODUCT_CREATED"
     // Stores the actual event data (JSON) so Kafka can read it later
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "json", nullable = false)
     private String payload;
+
+    @Column(name = "created_at")
     private LocalDateTime createdAt;
 
     // False = Waiting to be sent to Kafka

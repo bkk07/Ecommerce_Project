@@ -27,6 +27,8 @@ public class ProductEventListener {
             inventoryService.initStock(event.getSku());
         } catch (JsonProcessingException e) {
             log.error("Error deserializing ProductCreatedEvent: {}", e.getMessage());
+            // Throwing exception to trigger DLQ if configured, or at least fail the offset commit
+            throw new RuntimeException("Deserialization failed", e);
         }
     }
 }

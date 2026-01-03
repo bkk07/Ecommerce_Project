@@ -10,7 +10,7 @@
         <module name="common-dtos" />
         <module name="eureka" />
       </profile>
-      <profile name="Annotation profile for order-service" enabled="true">
+      <profile name="Annotation profile for user-service" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
@@ -19,12 +19,12 @@
         </processorPath>
         <module name="cart-service" />
         <module name="payment-service" />
-        <module name="checkout-service" />
         <module name="inventory-service" />
+        <module name="checkout-service" />
         <module name="search-service" />
         <module name="product-service" />
-        <module name="order-service" />
         <module name="user-service" />
+        <module name="order-service" />
         <module name="notification-service" />
       </profile>
     </annotationProcessing>

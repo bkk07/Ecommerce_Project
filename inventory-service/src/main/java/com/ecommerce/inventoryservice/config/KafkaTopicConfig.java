@@ -23,6 +23,7 @@ public class KafkaTopicConfig {
                 .replicas(1)
                 .build();
     }
+
     /**
      * Configures the Error Handler for Kafka Consumers.
      * 1. Retries 3 times with a 1-second delay.

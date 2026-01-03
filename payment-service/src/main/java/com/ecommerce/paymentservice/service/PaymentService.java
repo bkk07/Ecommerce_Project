@@ -1,5 +1,8 @@
 package com.ecommerce.paymentservice.service;
+import com.ecommerce.order.OrderCreatedEvent;
 import com.ecommerce.payment.PaymentCreateRequest;
+import com.ecommerce.payment.PaymentInitiatedEvent;
+import com.ecommerce.payment.PaymentRefundedEvent;
 import com.ecommerce.payment.PaymentSuccessEvent;
 import com.ecommerce.payment.VerifyPaymentRequest;
 import com.ecommerce.paymentservice.entity.Payment;
@@ -11,6 +14,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.razorpay.Order;
 import com.razorpay.RazorpayClient;
+import com.razorpay.Refund;
 import com.razorpay.Utils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigDecimal;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -43,37 +48,73 @@ public class PaymentService {
     private String webhookSecret;
 
     /**
-     * Step 1: Create Order
-     * TRUST: Checkout Service.
-     * UNTRUSTED: Frontend inputs regarding price.
+     * Step 1: Handle OrderCreatedEvent (Async from Order Service)
+     * Creates Razorpay Order and publishes PaymentInitiatedEvent
      */
     @Transactional
-    public String createOrder(PaymentCreateRequest request) {
-        try {
-            // 3. Create Razorpay Order
-            JSONObject orderRequest = new JSONObject();
-            orderRequest.put("amount", request.getAmount());
-            orderRequest.put("currency", "INR");
-            orderRequest.put("receipt", "order_rcptid_" + System.currentTimeMillis());
+    public void handleOrderCreated(OrderCreatedEvent event) {
+        // Idempotency Check
+        Optional<Payment> existingPayment = paymentRepository.findByOrderId(event.getOrderId());
+        if (existingPayment.isPresent()) {
+            log.info("Payment already initiated for Order: {}", event.getOrderId());
+            return;
+        }
 
-            Order order = razorpayClient.orders.create(orderRequest);
+        try {
+            // Convert to minor units (Paise)
+            long amountInPaise = event.getTotalAmount().multiply(BigDecimal.valueOf(100)).longValue();
+
+            JSONObject orderRequest = new JSONObject();
+            orderRequest.put("amount", amountInPaise);
+            orderRequest.put("currency", "INR");
+            // Truncate receipt to 40 chars to satisfy Razorpay API limit
+            String receipt = "order_rcptid_" + event.getOrderId();
+            if (receipt.length() > 40) {
+                receipt = receipt.substring(0, 40);
+            }
+            orderRequest.put("receipt", receipt);
+            orderRequest.put("notes", new JSONObject().put("order_id", event.getOrderId()));
+
+            Order razorpayOrder = razorpayClient.orders.create(orderRequest);
+            String razorpayOrderId = razorpayOrder.get("id");
 
             // Save initial payment record
             Payment payment = Payment.builder()
-                    .razorpayOrderId(order.get("id"))
-                    .amount(new BigDecimal(request.getAmount()))
-                    .userId(request.getUserId())
+                    .razorpayOrderId(razorpayOrderId)
+                    .orderId(event.getOrderId())
+                    .amount(event.getTotalAmount())
+                    .userId(Long.valueOf(event.getUserId())) 
                     .currency("INR")
-                    .status(PaymentStatus.CREATED)// Assuming request has checkoutId
+                    .status(PaymentStatus.CREATED)
                     .build();
-
             paymentRepository.save(payment);
 
-            return order.get("id");
+            log.info("Razorpay Order Created: {} for Order: {}", razorpayOrderId, event.getOrderId());
+
+            // Publish PaymentInitiatedEvent
+            PaymentInitiatedEvent initiatedEvent = new PaymentInitiatedEvent(
+                    event.getOrderId(),
+                    razorpayOrderId,
+                    event.getTotalAmount(),
+                    event.getUserId()
+            );
+            eventProducer.publishPaymentInitiated(initiatedEvent);
 
         } catch (Exception e) {
+            log.error("Failed to create Razorpay order for Order: {}", event.getOrderId(), e);
             throw new RuntimeException("Failed to create payment order", e);
         }
+    }
+
+    /**
+     * Step 1 (Legacy/Direct): Create Order
+     * Kept for backward compatibility if needed, but prefer handleOrderCreated
+     */
+    @Transactional
+    public String createOrder(PaymentCreateRequest request) {
+        // This method might be deprecated or removed if we fully switch to event-driven
+        // For now, leaving it but it's not the primary flow anymore.
+        throw new UnsupportedOperationException("Direct createOrder is deprecated. Use Event Driven flow.");
     }
 
     /**
@@ -84,9 +125,7 @@ public class PaymentService {
     public void verifyPayment(VerifyPaymentRequest req) {
         Payment payment = paymentRepository.findByRazorpayOrderId(req.getRazorpayOrderId())
                 .orElseThrow(() -> new RuntimeException("Order not found"));
-
         try {
-
             JSONObject options = new JSONObject();
             String generatedSignature = calculateSignature(req.getRazorpayOrderId(),req.getRazorpayPaymentId());
             options.put("razorpay_order_id", req.getRazorpayOrderId());
@@ -102,7 +141,7 @@ public class PaymentService {
 
                 PaymentSuccessEvent paymentSuccessEvent = new PaymentSuccessEvent();
                 paymentSuccessEvent.setPaymentId(req.getRazorpayPaymentId());
-                paymentSuccessEvent.setOrderId(req.getRazorpayOrderId());
+                paymentSuccessEvent.setOrderId(payment.getOrderId()); // Use stored orderId
                 paymentSuccessEvent.setPaymentMethod("");
                 eventProducer.publishPaymentSuccess(paymentSuccessEvent);
             } else {
@@ -133,15 +172,15 @@ public class PaymentService {
             // We only care about "payment.captured"
             if ("payment.captured".equals(event)) {
                 JsonNode entity = root.path("payload").path("payment").path("entity");
-                String orderId = entity.path("order_id").asText();
+                String razorpayOrderId = entity.path("order_id").asText();
                 String paymentId = entity.path("id").asText();
 
                 // 2. Idempotency Check
-                Payment payment = paymentRepository.findByRazorpayOrderId(orderId)
+                Payment payment = paymentRepository.findByRazorpayOrderId(razorpayOrderId)
                         .orElseThrow(() -> new RuntimeException("Order not found for webhook"));
 
                 if (payment.getStatus() == PaymentStatus.PAID) {
-                    log.info("Payment already processed for order: {}", orderId);
+                    log.info("Payment already processed for order: {}", razorpayOrderId);
                     return;
                 }
 
@@ -154,14 +193,14 @@ public class PaymentService {
 
                 // 5. Notify Ecosystem (Saga)
 //                PaymentSuccessEvent successEvent = new PaymentSuccessEvent(
-//                        payment.getCheckoutId(),
+//                        payment.getOrderId(),
 //                        paymentId,
 //                        payment.getAmount().toString(),
 //                        payment.getMethodType().toString()
 //                );
 //                eventProducer.publishPaymentSuccess(successEvent);
 
-//                log.info("Payment successfully captured and event published for checkout: {}", payment.getCheckoutId());
+//                log.info("Payment successfully captured and event published for order: {}", payment.getOrderId());
             }
 
         } catch (Exception e) {
@@ -221,6 +260,47 @@ public class PaymentService {
         } catch (Exception e) {
             e.printStackTrace();
             return "Error calculating signature";
+        }
+    }
+
+    @Transactional
+    public void processRefund(String orderId) {
+        // Here orderId refers to our internal orderId, so we need to find payment by orderId
+        Payment payment = paymentRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Payment not found for order: " + orderId));
+
+        if (payment.getStatus() == PaymentStatus.REFUNDED) {
+            log.info("Payment already refunded for order: {}", orderId);
+            return;
+        }
+
+        // Only refund if payment was successful (VERIFIED or PAID)
+        if (payment.getStatus() == PaymentStatus.VERIFIED || payment.getStatus() == PaymentStatus.PAID) {
+            try {
+                JSONObject refundRequest = new JSONObject();
+                refundRequest.put("payment_id", payment.getRazorpayPaymentId());
+                refundRequest.put("amount", payment.getAmount().multiply(BigDecimal.valueOf(100)).longValue()); // Refund full amount
+                refundRequest.put("speed", "normal");
+
+                Refund refund = razorpayClient.payments.refund(refundRequest);
+                
+                payment.setStatus(PaymentStatus.REFUNDED);
+                paymentRepository.save(payment);
+
+                PaymentRefundedEvent event = new PaymentRefundedEvent(orderId, payment.getRazorpayPaymentId(), refund.get("id"));
+                eventProducer.publishPaymentRefunded(event);
+                
+                log.info("Refund processed successfully for order: {}", orderId);
+
+            } catch (Exception e) {
+                log.error("Error processing refund for order: {}", orderId, e);
+                throw new RuntimeException("Refund failed", e);
+            }
+        } else {
+            log.info("Payment status {} does not require refund for order: {}", payment.getStatus(), orderId);
+            // Even if no refund needed, we should probably emit event so Saga can complete
+            PaymentRefundedEvent event = new PaymentRefundedEvent(orderId, null, null);
+            eventProducer.publishPaymentRefunded(event);
         }
     }
 }

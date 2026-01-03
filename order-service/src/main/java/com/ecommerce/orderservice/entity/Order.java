@@ -17,9 +17,8 @@ public class Order {
 
     @Id
     private String orderId;
-
-
-    private String paymentId;
+    private String paymentId; // Stores the final payment transaction ID (e.g., pay_...)
+    private String razorpayOrderId; // Stores the Razorpay Order ID (e.g., order_...)
 
     private String userId;
 

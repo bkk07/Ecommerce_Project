@@ -1,11 +1,13 @@
 package com.ecommerce.orderservice.mapper;
 
+import com.ecommerce.order.OrderItemDto;
 import com.ecommerce.orderservice.dto.OrderItemResponse;
 import com.ecommerce.orderservice.dto.OrderResponse;
 import com.ecommerce.orderservice.entity.Order;
 import com.ecommerce.orderservice.entity.OrderItem;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 @Component
@@ -20,7 +22,20 @@ public class OrderMapper {
                 .items(mapToItemDtos(order.getItems()))
                 .build();
     }
-    private List<OrderItemResponse> mapToItemDtos(List<OrderItem> items) {
+    public List<OrderItemDto> mapToOrderItemDtos(List<OrderItem> orderItems) {
+        List<OrderItemDto> orderItemDtos = new ArrayList<OrderItemDto>();
+        for (OrderItem orderItem : orderItems) {
+            OrderItemDto orderItemDto = new OrderItemDto();
+            orderItemDto.setPrice(orderItem.getPrice());
+            orderItemDto.setQuantity(orderItem.getQuantity());
+            orderItemDto.setProductName(orderItem.getProductName());
+            orderItemDto.setSkuCode(orderItem.getSkuCode());
+
+            orderItemDtos.add(orderItemDto);
+        }
+        return orderItemDtos;
+    }
+    public List<OrderItemResponse> mapToItemDtos(List<OrderItem> items) {
         return items.stream()
                 .map(item -> OrderItemResponse.builder()
                         .skuCode(item.getSkuCode())

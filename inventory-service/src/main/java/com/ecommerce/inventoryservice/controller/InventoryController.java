@@ -16,9 +16,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class InventoryController {
-
     private final InventoryService inventoryService;
-
     @PostMapping("/init/{skuCode}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> initStock(@PathVariable String skuCode) {
@@ -27,7 +25,6 @@ public class InventoryController {
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body("Stock initialized for SKU: " + skuCode);
     }
-
     @PutMapping("/update/{skuCode}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> updateStock(
@@ -37,36 +34,36 @@ public class InventoryController {
         inventoryService.updateStock(skuCode, quantity);
         return ResponseEntity.ok("Stock updated for SKU: " + skuCode);
     }
-
     @PostMapping("/reserve/{skuCode}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<String> reserveStock(
             @PathVariable String skuCode,
-            @RequestParam Integer quantity) {
-        log.info("Reserving stock for SKU: {} with quantity: {}", skuCode, quantity);
-        inventoryService.reserveStock(skuCode, quantity);
+            @RequestParam Integer quantity,
+            @RequestParam String orderId) { // Change: Order ID must come from the caller
+        log.info("Reserving stock for SKU: {} with quantity: {} for Order: {}", skuCode, quantity, orderId);
+        inventoryService.reserveStock(skuCode, quantity, orderId);
         return ResponseEntity.ok("Stock reserved for SKU: " + skuCode);
     }
     @PostMapping("/release/{skuCode}")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<String> releaseStock(
             @PathVariable String skuCode,
-            @RequestParam Integer quantity) {
-        log.info("Releasing stock for SKU: {} with quantity: {}", skuCode, quantity);
-        inventoryService.releaseStock(skuCode, quantity);
+            @RequestParam Integer quantity,
+            @RequestParam String orderId) { // Change: Order ID must come from the caller
+        log.info("Releasing stock for SKU: {} with quantity: {} for Order: {}", skuCode, quantity, orderId);
+        inventoryService.releaseStock(skuCode, quantity, orderId);
         return ResponseEntity.ok("Stock released for SKU: " + skuCode);
     }
     @PostMapping("/lock")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
-    void lockStock(@RequestBody List<StockItem> items){
-        for(StockItem item:items){
-            inventoryService.reserveStock(item.getSku(),item.getQuantity());
-        }
+    public ResponseEntity<String> lockStock(@RequestBody List<StockItem> items, @RequestParam String orderId){
+        inventoryService.reserveStock(items, orderId);
+        return ResponseEntity.ok("Stock locked for order: " + orderId);
     }
     @PostMapping("/release")
-    void releaseStock(@RequestBody List<StockItem> items){
-        for(StockItem item:items){
-            inventoryService.releaseStock(item.getSku(),item.getQuantity());
-        }
+    @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
+    public ResponseEntity<String> releaseStock(@RequestBody List<StockItem> items, @RequestParam String orderId){
+        inventoryService.releaseStock(items, orderId);
+        return ResponseEntity.ok("Stock released for order: " + orderId);
     }
 }

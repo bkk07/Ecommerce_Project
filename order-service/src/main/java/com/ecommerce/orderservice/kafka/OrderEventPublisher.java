@@ -1,0 +1,32 @@
+package com.ecommerce.orderservice.kafka;
+
+import com.ecommerce.inventory.InventoryLockEvent;
+import com.ecommerce.order.OrderCancelEvent;
+import com.ecommerce.order.OrderCreatedEvent;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
+import org.springframework.stereotype.Service;
+
+import static com.ecommerce.common.KafkaProperties.*;
+
+@Service
+@Slf4j
+@RequiredArgsConstructor
+public class OrderEventPublisher {
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+
+    public void  handleOrderCancel(OrderCancelEvent orderCancelEvent) {
+        kafkaTemplate.send(ORDER_CANCEL_EVENTS_TOPIC ,orderCancelEvent.getOrderId(),orderCancelEvent);
+    }
+
+    public void publishOrderCreatedEvent(OrderCreatedEvent event) {
+        log.info("Publishing OrderCreatedEvent for Order: {}", event.getOrderId());
+        kafkaTemplate.send(ORDER_CREATED_EVENTS_TOPIC, event.getOrderId(), event);
+    }
+
+    public void publishInventoryLockEvent(InventoryLockEvent event) {
+        log.info("Publishing InventoryLockEvent for Order: {}", event.getOrderId());
+        kafkaTemplate.send(INVENTORY_LOCK_TOPIC, event.getOrderId(), event);
+    }
+}

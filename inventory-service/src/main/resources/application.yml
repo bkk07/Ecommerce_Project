@@ -6,6 +6,8 @@ spring:
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
     producer:
       # Use String for Keys (Product ID)
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
@@ -14,6 +16,8 @@ spring:
       # Reliability Settings
       retries: 3
       acks: all
+    listener:
+      ack-mode: record
   datasource:
     url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&serverTimezone=UTC
     username: root
@@ -23,7 +27,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update          # dev: update | prod: validate
+      ddl-auto: update     # dev: update | prod: validate
     show-sql: true
     open-in-view: false
     properties:

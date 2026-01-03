@@ -1,27 +1,23 @@
 package com.ecommerce.payment;
+
+import java.math.BigDecimal;
+
 public class PaymentCreateRequest {
-    private Long amount;
-    private Long userId;
+    private BigDecimal amount;
+
+//    private Long userId;
+//    private String orderId; // Added orderId
     public PaymentCreateRequest() {
     }
-    public PaymentCreateRequest(Long amount, Long userId) {
+    public PaymentCreateRequest(BigDecimal amount) {
         this.amount = amount;
-        this.userId = userId;
     }
-
-    public Long getAmount() {
+    public BigDecimal getAmount() {
         return amount;
     }
-
-    public void setAmount(Long amount) {
+    public void setAmount(BigDecimal amount) {
         this.amount = amount;
     }
 
-    public Long getUserId() {
-        return userId;
-    }
 
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
 }

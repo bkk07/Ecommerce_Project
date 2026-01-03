@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Razorpay Test Client</title>
+    <style>
+        body { font-family: sans-serif; padding: 50px; text-align: center; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; background-color: #3399cc; color: white; border: none; border-radius: 4px; }
+    </style>
+</head>
+<body>
+
+    <h2>Razorpay Payment Test</h2>
+    <p>Open the browser console (F12) to see the response payload.</p>
+    <button id="rzp-button1">Pay Now</button>
+
+    <!-- Razorpay SDK -->
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+    // 1. REPLACE THIS WITH YOUR ACTUAL RAZORPAY KEY ID
+    var keyId = "rzp_test_RyEfqhx8DTtt9q";
+
+    // 2. REPLACE THIS WITH THE ORDER ID GENERATED FROM YOUR BACKEND
+    var orderId = "order_RzLos7SWYfO2tj"; // <-- Paste your actual generated ID here
+
+    // 3. PASTE YOUR VALID JWT TOKEN HERE (Login via Postman first to get one)
+    var authToken = "Bearer eyJhbGciOiJSUzI1NiJ9.eyJyb2xlIjoiVVNFUiIsInN1YiI6IjEyIiwiaWF0IjoxNzY3Mjg2MTg5LCJleHAiOjE3Njc2NDYxODl9.CH31RZQZvbp_wsPQx2EYVoKTIG1VOHwTQb4lk7vkuBZ-giTQYkva_uhIjn9__z8yP1YdglE0bFbcTzVzEsvHAVaTDM4oc4h2sXX0epCZPyo6-SfPaHMrRa3_6ZWCZ1r0GGn0nIZsi6wgynRcw0FJRdBYGyMVuh3ZgpXQuuwdSPd_dUCvjglu4IqO9J45fUv9LDVX3paHL8ERNWIdtpJFOPP2X0sJ0wJp8XJYExyLpPZBTv91DB18ebeN61Td3GEPNL_yUN6_qjYz8vrg6UrrOS9S_U0w7uL8GjcIEq4LwdBnpJJ4u2rO5W90xXeeZfgamra1pZ203scpvRVxpoJbKQ";
+
+    var options = {
+        "key": keyId, 
+        "amount": "50000", // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
+        "currency": "INR",
+        "name": "Ecommerce Test",
+        "description": "Test Transaction",
+        "image": "https://example.com/your_logo",
+        "order_id": orderId, 
+        "handler": function (response){
+            // This is the data that maps to your PaymentCallbackRequest DTO
+            console.log("Payment Successful!");
+            console.log("razorpay_payment_id: " + response.razorpay_payment_id);
+            console.log("razorpay_order_id: " + response.razorpay_order_id);
+            console.log("razorpay_signature: " + response.razorpay_signature);
+
+            alert("Payment Successful! Payment ID: " + response.razorpay_payment_id);
+
+            // Prepare the payload matching your PaymentCallbackRequest DTO
+            var paymentData = {
+                razorpayOrderId: response.razorpay_order_id,
+                razorpayPaymentId: response.razorpay_payment_id,
+                razorpaySignature: response.razorpay_signature
+            };
+
+            // Log the full JSON for easy copying to Postman/Backend testing
+            console.log("Payload for Backend:", JSON.stringify(paymentData, null, 2));
+
+            // Send to backend to trigger the Service's finalize method
+            fetch("http://localhost:8080/api/payments/verify", {
+                method: "POST",
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": authToken 
+                },
+                body: JSON.stringify(paymentData)
+            })
+            .then(res => res.text()) // Or res.json() depending on your backend return type
+            .then(data => console.log("Backend Verification Response:", data))
+            .catch(err => console.error("Error verifying payment:", err));
+        },
+        "prefill": {
+            "name": "Test User",
+            "email": "test.user@example.com",
+            "contact": "9999999999"
+        },
+        "theme": {
+            "color": "#3399cc"
+        }
+    };
+
+    var rzp1 = new Razorpay(options);
+    
+    rzp1.on('payment.failed', function (response){
+        alert("Payment Failed");
+        console.error(response.error);
+    });
+
+    document.getElementById('rzp-button1').onclick = function(e){
+        rzp1.open();
+        e.preventDefault();
+    }
+    </script>
+</body>
+</html>

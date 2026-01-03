@@ -9,23 +9,24 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "payments", indexes = {
         @Index(name = "idx_razorpay_order_id", columnList = "razorpayOrderId"),
-        @Index(name = "idx_checkout_id", columnList = "checkoutId")
+        @Index(name = "idx_order_id", columnList = "orderId")
 })
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Payment {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     @Column(nullable = false)
     private Long userId;
-
     @Column(nullable = false, unique = true)
     private String razorpayOrderId;
+
+    @Column(nullable = false, unique = true)
+    private String orderId; // Changed from checkoutId to orderId to match user request
 
     private String razorpayPaymentId;
     private String razorpaySignature;

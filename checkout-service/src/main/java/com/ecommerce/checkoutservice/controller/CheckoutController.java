@@ -24,9 +24,9 @@ public class CheckoutController {
         return ResponseEntity.ok(checkoutService.initiateCheckout(request));
     }
 
-    @PostMapping("/finalize")
-    @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<String> finalizeOrder(@RequestBody PaymentCallbackRequest callback) {
-        return ResponseEntity.ok(checkoutService.finalizeOrder(callback));
-    }
+//    @PostMapping("/finalize")
+//    @PreAuthorize("hasRole('USER')")
+//    public ResponseEntity<String> finalizeOrder(@RequestBody PaymentCallbackRequest callback) {
+//        return ResponseEntity.ok(checkoutService.finalizeOrder(callback));
+//    }
 }

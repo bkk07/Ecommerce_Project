@@ -17,7 +17,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update          # dev: update | prod: validate
+      ddl-auto: update         # dev: update | prod: validate
     show-sql: true
     open-in-view: false
     properties:

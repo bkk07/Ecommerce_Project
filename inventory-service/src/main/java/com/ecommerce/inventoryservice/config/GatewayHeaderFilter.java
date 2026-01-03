@@ -12,14 +12,11 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-
 public class GatewayHeaderFilter extends OncePerRequestFilter {
-
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-
         // 1. Read Headers from Gateway
         String userId = request.getHeader("X-Auth-User-Id");
         String userRole = request.getHeader("X-Auth-User-Role");

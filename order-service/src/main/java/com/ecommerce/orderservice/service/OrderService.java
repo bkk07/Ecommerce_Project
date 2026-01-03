@@ -1,12 +1,18 @@
 package com.ecommerce.orderservice.service;
 
+import com.ecommerce.checkout.CreateOrderCommand;
+import com.ecommerce.inventory.InventoryLockEvent;
+import com.ecommerce.order.OrderCancelEvent;
 import com.ecommerce.order.OrderCreatedEvent;
+import com.ecommerce.order.OrderItemDto;
 import com.ecommerce.orderservice.dto.OrderResponse;
 import com.ecommerce.orderservice.entity.Order;
 import com.ecommerce.orderservice.entity.OrderItem;
 import com.ecommerce.orderservice.enums.OrderStatus;
+import com.ecommerce.orderservice.kafka.OrderEventPublisher;
 import com.ecommerce.orderservice.mapper.OrderMapper;
 import com.ecommerce.orderservice.repository.OrderRepository;
+import com.ecommerce.payment.PaymentInitiatedEvent;
 import com.ecommerce.payment.PaymentSuccessEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,22 +28,26 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 public class OrderService {
-
+    private final OrderEventPublisher orderEventPublisher;
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
-    // 1. CREATE (Triggered by Kafka)
+
+    // 1. CREATE (Triggered by Kafka CreateOrderCommand)
     @Transactional
-    public void createOrder(OrderCreatedEvent event) {
-        log.info("Order Service is Processing Create Order");
+    public void createOrder(CreateOrderCommand command) {
+        log.info("Order Service is Processing Create Order Command");
+        
+        String orderId = UUID.randomUUID().toString();
+
         Order order = Order.builder()
-                .orderId(event.getOrderId())
-                .userId(event.getUserId())
-                .status(OrderStatus.PENDING)
-                .totalAmount(event.getTotalAmount())
-                .shippingAddress("Address") // I need to change here for the testing purpose
+                .orderId(orderId)
+                .userId(command.getUserId())
+                .status(OrderStatus.PENDING) // Initial status PENDING
+                .totalAmount(command.getTotalAmount())
+                .shippingAddress("Address") // Placeholder
                 .build();
 
-        List<OrderItem> items = event.getItems().stream()
+        List<OrderItem> items = command.getItems().stream()
                 .map(itemDto -> OrderItem.builder()
                         .skuCode(itemDto.getSkuCode())
                         .productName(itemDto.getProductName())
@@ -47,8 +57,23 @@ public class OrderService {
                         .build())
                 .collect(Collectors.toList());
         order.setItems(items);
-        log.info("Order Created Successfully");
+        
         orderRepository.save(order);
+        log.info("Order Persisted Successfully with ID: {}", orderId);
+
+        // Publish InventoryLockEvent
+        InventoryLockEvent inventoryLockEvent = new InventoryLockEvent(orderId, command.getItems());
+        orderEventPublisher.publishInventoryLockEvent(inventoryLockEvent);
+
+        // Publish OrderCreatedEvent
+        OrderCreatedEvent event = new OrderCreatedEvent();
+        event.setOrderId(orderId);
+        event.setUserId(command.getUserId());
+        event.setTotalAmount(command.getTotalAmount());
+        event.setItems(command.getItems());
+        event.setAddressDTO(command.getAddressDTO());
+        
+        orderEventPublisher.publishOrderCreatedEvent(event);
     }
 
     // 2. READ: Get My Orders (Returns DTOs)
@@ -77,13 +102,52 @@ public class OrderService {
         orderRepository.save(order);
         log.info("Order Updated Successfully {}", event.getOrderId());
     }
+
+    @Transactional
+    public void updatePaymentReady(PaymentInitiatedEvent event) {
+        Order order = orderRepository.findByOrderId(event.getOrderId())
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        
+        order.setRazorpayOrderId(event.getRazorpayOrderId());
+        order.setStatus(OrderStatus.PAYMENT_READY);
+        orderRepository.save(order);
+
+        log.info("Payment Initiated for Order: {}, Razorpay Order ID: {}", event.getOrderId(), event.getRazorpayOrderId());
+    }
+
     @Transactional
     public String updateStateOfTheOrder(String orderId, OrderStatus status){
         Order order = orderRepository.findByOrderId(orderId)
                 .orElseThrow(() -> new RuntimeException("Order not found"));
-        order.setStatus(status);
+        
+        // If user requests cancellation, we start the Saga
+        if(status == OrderStatus.CANCELLED){
+            // We set it to CANCEL_REQUESTED to indicate Saga is in progress
+            order.setStatus(OrderStatus.CANCEL_REQUESTED);
+            
+            OrderCancelEvent orderCancelEvent = new OrderCancelEvent();
+            orderCancelEvent.setOrderId(orderId);
+            orderCancelEvent.setUserId(order.getUserId());
+            List<OrderItemDto> orderItemDtos = orderMapper.mapToOrderItemDtos(order.getItems());
+            orderCancelEvent.setItems(orderItemDtos);
+
+            orderEventPublisher.handleOrderCancel(orderCancelEvent);
+            log.info("Initiated Saga Cancellation for Order {}", orderId);
+        } else {
+            order.setStatus(status);
+        }
+
         orderRepository.save(order);
         log.info("Successfully Updated the state of the order {}",order.getOrderId());
         return "Order Updated Successfully";
+    }
+
+    @Transactional
+    public void cancelOrder(String orderId) {
+        Order order = orderRepository.findByOrderId(orderId)
+                .orElseThrow(() -> new RuntimeException("Order not found"));
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+        log.info("Order {} Cancelled due to inventory lock failure", orderId);
     }
 }
