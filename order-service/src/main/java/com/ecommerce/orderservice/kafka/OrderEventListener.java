@@ -62,7 +62,12 @@ public class OrderEventListener {
 
     @KafkaListener(topics = INVENTORY_LOCK_FAILED_TOPIC, groupId = "order-group")
     public void handleInventoryLockFailed(InventoryLockFailedEvent event) {
-        log.info("Received Inventory Lock Failed Event for Order ID: {}", event.getOrderId());
-        orderService.cancelOrder(event.getOrderId());
+        log.info("Received InventoryLockFailedEvent for Order ID: {}. Inventory could not be locked.", event.getOrderId());
+        try {
+            orderService.cancelOrder(event.getOrderId());
+            log.info("Order {} cancelled successfully due to inventory lock failure.", event.getOrderId());
+        } catch (Exception e) {
+            log.error("Error cancelling order {} after inventory lock failure", event.getOrderId(), e);
+        }
     }
 }

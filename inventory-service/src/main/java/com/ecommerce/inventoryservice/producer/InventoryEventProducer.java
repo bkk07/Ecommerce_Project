@@ -1,4 +1,5 @@
 package com.ecommerce.inventoryservice.producer;
+import com.ecommerce.inventory.InventoryLockFailedEvent;
 import com.ecommerce.inventory.InventoryReleasedEvent;
 import com.ecommerce.inventory.InventoryUpdatedEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -11,8 +12,7 @@ import org.springframework.messaging.support.MessageBuilder;
 import org.springframework.stereotype.Component;
 import org.springframework.kafka.support.KafkaHeaders;
 
-import static com.ecommerce.common.KafkaProperties.INVENTORY_EVENTS_TOPIC;
-import static com.ecommerce.common.KafkaProperties.INVENTORY_RELEASED_EVENTS_TOPIC;
+import static com.ecommerce.common.KafkaProperties.*;
 
 @Component
 @RequiredArgsConstructor
@@ -49,6 +49,20 @@ public class InventoryEventProducer {
             kafkaTemplate.send(message);
         } catch (JsonProcessingException e) {
             log.error("Error serializing InventoryReleasedEvent: {}", e.getMessage());
+        }
+    }
+
+    public void sendInventoryLockFailed(InventoryLockFailedEvent event) {
+        log.info("Sending InventoryLockFailedEvent for Order: {}", event.getOrderId());
+        try {
+            String eventString = objectMapper.writeValueAsString(event);
+            Message<String> message = MessageBuilder
+                    .withPayload(eventString)
+                    .setHeader(KafkaHeaders.TOPIC, INVENTORY_LOCK_FAILED_TOPIC)
+                    .build();
+            kafkaTemplate.send(message);
+        } catch (JsonProcessingException e) {
+            log.error("Error serializing InventoryLockFailedEvent: {}", e.getMessage());
         }
     }
 }

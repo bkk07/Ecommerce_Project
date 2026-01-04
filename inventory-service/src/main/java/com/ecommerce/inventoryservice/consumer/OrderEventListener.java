@@ -55,8 +55,7 @@ public class OrderEventListener {
         } catch (Exception e) {
             log.error("Failed to lock stock for order: {}", event != null ? event.getOrderId() : "unknown", e);
             if (event != null) {
-                InventoryLockFailedEvent failedEvent = new InventoryLockFailedEvent(event.getOrderId(), e.getMessage());
-                kafkaTemplate.send(INVENTORY_LOCK_FAILED_TOPIC, event.getOrderId(), failedEvent);
+                inventoryService.handleLockFailure(event.getOrderId(), e.getMessage());
             }
         }
     }

@@ -15,8 +15,11 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.util.List;
 
@@ -31,6 +34,7 @@ public class InventoryService {
     private final StockReservationRepository stockReservationRepository;
     private final OutboxEventRepository outboxEventRepository;
     private final ObjectMapper objectMapper;
+    private final ApplicationContext applicationContext;
 
     @Transactional
     public void initStock(String skuCode) {
@@ -160,9 +164,21 @@ public class InventoryService {
 
     @Transactional
     public void lockStockForOrder(InventoryLockEvent event) {
-        for (OrderItemDto item : event.getItems()) {
-            reserveStock(item.getSkuCode(), item.getQuantity(), event.getOrderId());
+        try {
+            for (OrderItemDto item : event.getItems()) {
+                reserveStock(item.getSkuCode(), item.getQuantity(), event.getOrderId());
+            }
+        } catch (InsufficientStockException | InventoryNotFoundException e) {
+            log.warn("Failed to lock stock for order: {}. Reason: {}", event.getOrderId(), e.getMessage());
+            TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+            applicationContext.getBean(InventoryService.class).handleLockFailure(event.getOrderId(), e.getMessage());
         }
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public void handleLockFailure(String orderId, String reason) {
+        InventoryLockFailedEvent failedEvent = new InventoryLockFailedEvent(orderId, reason);
+        saveToOutbox(orderId, "InventoryLockFailedEvent", failedEvent, INVENTORY_LOCK_FAILED_TOPIC);
     }
 
     private void saveToOutbox(String aggregateId, String eventType, Object event, String topic) {

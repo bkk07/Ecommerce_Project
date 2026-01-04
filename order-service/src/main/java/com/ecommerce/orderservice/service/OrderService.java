@@ -35,7 +35,7 @@ public class OrderService {
     // 1. CREATE (Triggered by Kafka CreateOrderCommand)
     @Transactional
     public void createOrder(CreateOrderCommand command) {
-        log.info("Order Service is Processing Create Order Command");
+        log.info("Order Service is Processing Create Order Command for User: {}", command.getUserId());
         
         String orderId = UUID.randomUUID().toString();
 
@@ -64,6 +64,7 @@ public class OrderService {
         // Publish InventoryLockEvent
         InventoryLockEvent inventoryLockEvent = new InventoryLockEvent(orderId, command.getItems());
         orderEventPublisher.publishInventoryLockEvent(inventoryLockEvent);
+        log.info("Published InventoryLockEvent for Order ID: {}", orderId);
 
         // Publish OrderCreatedEvent
         OrderCreatedEvent event = new OrderCreatedEvent();
@@ -74,11 +75,13 @@ public class OrderService {
         event.setAddressDTO(command.getAddressDTO());
         
         orderEventPublisher.publishOrderCreatedEvent(event);
+        log.info("Published OrderCreatedEvent for Order ID: {}", orderId);
     }
 
     // 2. READ: Get My Orders (Returns DTOs)
     @Transactional(readOnly = true)
     public List<OrderResponse> getUserOrders(String userId) {
+        log.info("Fetching orders for User ID: {}", userId);
         List<Order> orders = orderRepository.findByUserId(userId);
         return orders.stream()
                 .map(orderMapper::mapToDto)
@@ -88,25 +91,37 @@ public class OrderService {
     // 3. READ: Get Specific Order (Returns DTO)
     @Transactional(readOnly = true)
     public OrderResponse getOrderDetails(String orderNumber) {
+        log.info("Fetching details for Order ID: {}", orderNumber);
         Order order = orderRepository.findByOrderId(orderNumber)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> {
+                    log.error("Order not found with ID: {}", orderNumber);
+                    return new RuntimeException("Order not found");
+                });
         return orderMapper.mapToDto(order);
     }
 
     @Transactional
     public void updatedToPlaced(PaymentSuccessEvent event){
+        log.info("Updating order status to PLACED for Order ID: {}", event.getOrderId());
         Order order = orderRepository.findByOrderId(event.getOrderId())
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> {
+                    log.error("Order not found with ID: {}", event.getOrderId());
+                    return new RuntimeException("Order not found");
+                });
         order.setPaymentId(event.getPaymentId());
         order.setStatus(OrderStatus.PLACED);
         orderRepository.save(order);
-        log.info("Order Updated Successfully {}", event.getOrderId());
+        log.info("Order Updated Successfully to PLACED for Order ID: {}", event.getOrderId());
     }
 
     @Transactional
     public void updatePaymentReady(PaymentInitiatedEvent event) {
+        log.info("Updating order status to PAYMENT_READY for Order ID: {}", event.getOrderId());
         Order order = orderRepository.findByOrderId(event.getOrderId())
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> {
+                    log.error("Order not found with ID: {}", event.getOrderId());
+                    return new RuntimeException("Order not found");
+                });
         
         order.setRazorpayOrderId(event.getRazorpayOrderId());
         order.setStatus(OrderStatus.PAYMENT_READY);
@@ -117,8 +132,12 @@ public class OrderService {
 
     @Transactional
     public String updateStateOfTheOrder(String orderId, OrderStatus status){
+        log.info("Updating state of Order ID: {} to {}", orderId, status);
         Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> {
+                    log.error("Order not found with ID: {}", orderId);
+                    return new RuntimeException("Order not found");
+                });
         
         // If user requests cancellation, we start the Saga
         if(status == OrderStatus.CANCELLED){
@@ -138,16 +157,20 @@ public class OrderService {
         }
 
         orderRepository.save(order);
-        log.info("Successfully Updated the state of the order {}",order.getOrderId());
+        log.info("Successfully Updated the state of the order {} to {}", order.getOrderId(), order.getStatus());
         return "Order Updated Successfully";
     }
 
     @Transactional
     public void cancelOrder(String orderId) {
+        log.info("Attempting to cancel Order ID: {} due to inventory lock failure", orderId);
         Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found"));
+                .orElseThrow(() -> {
+                    log.error("Order not found with ID: {}", orderId);
+                    return new RuntimeException("Order not found");
+                });
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
-        log.info("Order {} Cancelled due to inventory lock failure", orderId);
+        log.info("Order {} Cancelled successfully due to inventory lock failure", orderId);
     }
 }
