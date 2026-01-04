@@ -2,25 +2,28 @@ package com.ecommerce.orderservice.service;
 
 import com.ecommerce.checkout.CreateOrderCommand;
 import com.ecommerce.inventory.InventoryLockEvent;
-import com.ecommerce.order.OrderCancelEvent;
-import com.ecommerce.order.OrderCreatedEvent;
-import com.ecommerce.order.OrderItemDto;
-import com.ecommerce.order.OrderPlacedEvent;
+import com.ecommerce.order.*;
 import com.ecommerce.orderservice.dto.OrderResponse;
 import com.ecommerce.orderservice.entity.Order;
 import com.ecommerce.orderservice.entity.OrderItem;
+import com.ecommerce.orderservice.entity.OrderOutbox;
+import com.ecommerce.orderservice.entity.OutboxStatus;
 import com.ecommerce.orderservice.enums.OrderStatus;
 import com.ecommerce.orderservice.kafka.OrderEventPublisher;
 import com.ecommerce.orderservice.mapper.OrderMapper;
+import com.ecommerce.orderservice.repository.OrderOutboxRepository;
 import com.ecommerce.orderservice.repository.OrderRepository;
 import com.ecommerce.payment.PaymentInitiatedEvent;
 import com.ecommerce.payment.PaymentSuccessEvent;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -32,6 +35,8 @@ public class OrderService {
     private final OrderEventPublisher orderEventPublisher;
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
+    private final OrderOutboxRepository orderOutboxRepository;
+    private final ObjectMapper objectMapper;
 
     // 1. CREATE (Triggered by Kafka CreateOrderCommand)
     @Transactional
@@ -114,10 +119,8 @@ public class OrderService {
         orderRepository.save(order);
         log.info("Order Updated Successfully to PLACED for Order ID: {}", event.getOrderId());
 
-        // Publish OrderPlacedEvent
-        OrderPlacedEvent orderPlacedEvent = new OrderPlacedEvent(order.getOrderId(), order.getUserId());
-        orderEventPublisher.publishOrderPlacedEvent(orderPlacedEvent);
-        log.info("Published OrderPlacedEvent for Order ID: {}", order.getOrderId());
+        // Create Outbox Event for ORDER_PLACED
+        saveOutboxEvent(order, OrderNotificationType.ORDER_PLACED, null);
     }
 
     @Transactional
@@ -148,6 +151,7 @@ public class OrderService {
         // If user requests cancellation, we start the Saga
         if(status == OrderStatus.CANCELLED){
             // We set it to CANCEL_REQUESTED to indicate Saga is in progress
+            log.info("Initiated Saga Cancellation for Order {}", orderId);
             order.setStatus(OrderStatus.CANCEL_REQUESTED);
             
             OrderCancelEvent orderCancelEvent = new OrderCancelEvent();
@@ -155,9 +159,7 @@ public class OrderService {
             orderCancelEvent.setUserId(order.getUserId());
             List<OrderItemDto> orderItemDtos = orderMapper.mapToOrderItemDtos(order.getItems());
             orderCancelEvent.setItems(orderItemDtos);
-
             orderEventPublisher.handleOrderCancel(orderCancelEvent);
-            log.info("Initiated Saga Cancellation for Order {}", orderId);
         } else {
             order.setStatus(status);
         }
@@ -178,5 +180,45 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);
         log.info("Order {} Cancelled successfully due to inventory lock failure", orderId);
+
+        // Create Outbox Event for ORDER_CANCELLED
+        saveOutboxEvent(order, OrderNotificationType.ORDER_CANCELLED, "Inventory Lock Failure");
+    }
+
+    // Changed to public so SagaOrchestratorService can use it
+    public void saveOutboxEvent(Order order, OrderNotificationType type, String reason) {
+        try {
+            OrderPayload payload = new OrderPayload(
+                    order.getOrderId(),
+                    order.getTotalAmount(),
+                    "USD", // Assuming USD for now, or fetch from order if available
+                    order.getItems() != null ? order.getItems().size() : 0,
+                    reason
+            );
+
+            OrderNotificationEvent notificationEvent = new OrderNotificationEvent(
+                    UUID.randomUUID().toString(),
+                    type,
+                    order.getUserId(),
+                    Instant.now(),
+                    1,
+                    payload
+            );
+
+            OrderOutbox outbox = OrderOutbox.builder()
+                    .eventId(notificationEvent.getEventId())
+                    .aggregateId(order.getOrderId())
+                    .eventType(type.name())
+                    .payload(objectMapper.writeValueAsString(notificationEvent))
+                    .status(OutboxStatus.PENDING)
+                    .build();
+
+            orderOutboxRepository.save(outbox);
+            log.info("Saved Outbox Event: {} for Order: {}", type, order.getOrderId());
+
+        } catch (JsonProcessingException e) {
+            log.error("Error serializing outbox event for Order: {}", order.getOrderId(), e);
+            throw new RuntimeException("Error serializing outbox event", e);
+        }
     }
 }

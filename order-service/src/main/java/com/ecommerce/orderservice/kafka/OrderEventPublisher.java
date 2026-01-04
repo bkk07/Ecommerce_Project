@@ -18,6 +18,7 @@ public class OrderEventPublisher {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     public void  handleOrderCancel(OrderCancelEvent orderCancelEvent) {
+        log.info("Publishing Order cancel to the notification service Order Id: {}",orderCancelEvent.getOrderId());
         kafkaTemplate.send(ORDER_CANCEL_EVENTS_TOPIC ,orderCancelEvent.getOrderId(),orderCancelEvent);
     }
 
@@ -34,6 +35,4 @@ public class OrderEventPublisher {
         log.info("Publishing OrderPlacedEvent for Order: {}", event.getOrderId());
         kafkaTemplate.send(ORDER_PLACED_TOPIC, event.getOrderId(), event);
     }
-
-
 }

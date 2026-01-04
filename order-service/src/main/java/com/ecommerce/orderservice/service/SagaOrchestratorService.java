@@ -3,6 +3,7 @@ package com.ecommerce.orderservice.service;
 import com.ecommerce.inventory.InventoryReleasedEvent;
 import com.ecommerce.order.OrderCancelEvent;
 import com.ecommerce.order.OrderItemDto;
+import com.ecommerce.order.OrderNotificationType;
 import com.ecommerce.orderservice.entity.Order;
 import com.ecommerce.orderservice.entity.SagaState;
 import com.ecommerce.orderservice.enums.OrderStatus;
@@ -27,6 +28,8 @@ public class SagaOrchestratorService {
     private final OrderRepository orderRepository;
     private final OrderEventPublisher orderEventPublisher;
     private final OrderMapper orderMapper;
+    private final OrderService orderService; // Inject OrderService to access saveOutboxEvent logic (or move it to a shared component)
+
     @Transactional
     public void handleInventoryReleased(InventoryReleasedEvent event) {
         log.info("Saga: Inventory Released for Order: {}", event.getOrderId());
@@ -41,6 +44,13 @@ public class SagaOrchestratorService {
         SagaState state = getOrCreateSagaState(event.getOrderId());
         state.setPaymentRefunded(true);
         sagaStateRepository.save(state);
+        
+        // Trigger Refund Notification
+        Order order = orderRepository.findByOrderId(event.getOrderId()).orElse(null);
+        if (order != null) {
+            orderService.saveOutboxEvent(order, OrderNotificationType.ORDER_REFUNDED, "Payment Refunded Successfully");
+        }
+
         checkAndFinalizeCancellation(event.getOrderId());
     }
 
@@ -63,6 +73,9 @@ public class SagaOrchestratorService {
                  order.setStatus(OrderStatus.CANCELLED);
                  orderRepository.save(order);
                  log.info("Saga: Order {} marked as CANCELLED", orderId);
+                 
+                 // TRIGGER OUTBOX EVENT HERE
+                 orderService.saveOutboxEvent(order, OrderNotificationType.ORDER_CANCELLED, "User Requested Cancellation");
              }
         }
     }

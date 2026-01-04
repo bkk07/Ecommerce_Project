@@ -1,4 +1,11 @@
 package com.ecommerce.notificationservice.infrastructure.messaging;
+
+// Deprecated: Replaced by OrderNotificationConsumer
+// Keeping file empty or removed in real scenario, but here just commenting out logic to avoid conflicts
+// or simply removing the @Component annotation if we want to keep the file for reference.
+// For this task, I will comment out the content to disable it.
+
+/*
 import com.ecommerce.notificationservice.domain.enumtype.ChannelType;
 import com.ecommerce.notificationservice.infrastructure.entity.UserProfileEntity;
 import com.ecommerce.notificationservice.infrastructure.events.NotificationEvent;
@@ -54,3 +61,4 @@ public class OrderPlacedConsumer {
         log.info("Processed Order Placed Notification for Order ID: {}", event.getOrderId());
     }
 }
+*/

@@ -31,4 +31,6 @@ public class KafkaProperties {
 
     public static final String ORDER_PLACED_TOPIC = "order-placed-event";
     public static final String USER_EVENTS_TOPIC = "user-events";
+    
+    public static final String ORDER_NOTIFICATIONS_TOPIC = "order-notifications-topic";
 }

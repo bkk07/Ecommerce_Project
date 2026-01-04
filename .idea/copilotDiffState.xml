@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="$PROJECT_DIR$/notification-service/src/main/java/com/ecommerce/notification/event/OrderNotificationType.java">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/notification-service/src/main/java/com/ecommerce/notification/event/OrderNotificationType.java" />
+              <option name="updatedContent" value="package com.ecommerce.notification.event;&#10;&#10;public enum OrderNotificationType {&#10;    ORDER_PLACED,&#10;    ORDER_CANCELLED,&#10;    ORDER_SHIPPED,&#10;    ORDER_DELIVERED&#10;}&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/order-service/src/main/java/com/ecommerce/order/event/OrderNotificationEvent.java">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/order-service/src/main/java/com/ecommerce/order/event/OrderNotificationEvent.java" />
+              <option name="updatedContent" value="package com.ecommerce.order.event;&#10;&#10;import com.fasterxml.jackson.annotation.JsonProperty;&#10;import lombok.AllArgsConstructor;&#10;import lombok.Builder;&#10;import lombok.Data;&#10;import lombok.NoArgsConstructor;&#10;&#10;import java.time.Instant;&#10;&#10;@Data&#10;@NoArgsConstructor&#10;@AllArgsConstructor&#10;@Builder&#10;public class OrderNotificationEvent {&#10;    @JsonProperty(&quot;eventId&quot;)&#10;    private String eventId;&#10;&#10;    @JsonProperty(&quot;type&quot;)&#10;    private OrderNotificationType type;&#10;&#10;    @JsonProperty(&quot;userId&quot;)&#10;    private String userId;&#10;&#10;    @JsonProperty(&quot;timestamp&quot;)&#10;    private Instant timestamp;&#10;&#10;    @JsonProperty(&quot;version&quot;)&#10;    private int version;&#10;&#10;    @JsonProperty(&quot;payload&quot;)&#10;    private OrderPayload payload;&#10;}&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/order-service/src/main/java/com/ecommerce/order/event/OrderNotificationType.java">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/order-service/src/main/java/com/ecommerce/order/event/OrderNotificationType.java" />
+              <option name="updatedContent" value="package com.ecommerce.order.event;&#10;&#10;public enum OrderNotificationType {&#10;    ORDER_PLACED,&#10;    ORDER_CANCELLED,&#10;    ORDER_SHIPPED,&#10;    ORDER_DELIVERED&#10;}&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/order-service/src/main/java/com/ecommerce/order/event/OrderPayload.java">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/order-service/src/main/java/com/ecommerce/order/event/OrderPayload.java" />
+              <option name="updatedContent" value="package com.ecommerce.order.event;&#10;&#10;import com.fasterxml.jackson.annotation.JsonInclude;&#10;import lombok.AllArgsConstructor;&#10;import lombok.Builder;&#10;import lombok.Data;&#10;import lombok.NoArgsConstructor;&#10;&#10;import java.math.BigDecimal;&#10;&#10;@Data&#10;@NoArgsConstructor&#10;@AllArgsConstructor&#10;@Builder&#10;@JsonInclude(JsonInclude.Include.NON_NULL)&#10;public class OrderPayload {&#10;    private String orderId;&#10;    private BigDecimal totalAmount;&#10;    private String currency;&#10;    private Integer itemCount;&#10;    private String cancellationReason; // optional&#10;}&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/order-service/src/main/java/com/ecommerce/order/outbox/OrderOutboxEntity.java">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/order-service/src/main/java/com/ecommerce/order/outbox/OrderOutboxEntity.java" />
+              <option name="updatedContent" value="package com.ecommerce.order.outbox;&#10;&#10;import com.ecommerce.order.event.OrderNotificationType;&#10;import jakarta.persistence.*;&#10;import lombok.AllArgsConstructor;&#10;import lombok.Builder;&#10;import lombok.Data;&#10;import lombok.NoArgsConstructor;&#10;&#10;import java.time.Instant;&#10;&#10;@Entity&#10;@Table(name = &quot;order_outbox&quot;, indexes = {&#10;    @Index(name = &quot;idx_outbox_status_created&quot;, columnList = &quot;status, created_at&quot;),&#10;    @Index(name = &quot;idx_outbox_event_id&quot;, columnList = &quot;event_id&quot;, unique = true)&#10;})&#10;@Data&#10;@NoArgsConstructor&#10;@AllArgsConstructor&#10;@Builder&#10;public class OrderOutboxEntity {&#10;    @Id&#10;    @GeneratedValue(strategy = GenerationType.IDENTITY)&#10;    private Long id;&#10;&#10;    @Column(name = &quot;event_id&quot;, nullable = false, unique = true, length = 36)&#10;    private String eventId;&#10;&#10;    @Column(name = &quot;aggregate_id&quot;, nullable = false, length = 36)&#10;    private String aggregateId; // orderId&#10;&#10;    @Enumerated(EnumType.STRING)&#10;    @Column(name = &quot;event_type&quot;, nullable = false)&#10;    private OrderNotificationType eventType;&#10;&#10;    @Column(name = &quot;payload&quot;, nullable = false, columnDefinition = &quot;LONGTEXT&quot;)&#10;    private String payload; // JSON serialized full event&#10;&#10;    @Enumerated(EnumType.STRING)&#10;    @Column(name = &quot;status&quot;, nullable = false)&#10;    private OutboxStatus status;&#10;&#10;    @Column(name = &quot;created_at&quot;, nullable = false)&#10;    private Instant createdAt;&#10;&#10;    @Column(name = &quot;published_at&quot;)&#10;    private Instant publishedAt;&#10;&#10;    public enum OutboxStatus {&#10;        PENDING, SENT, FAILED&#10;    }&#10;}&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/order-service/src/main/java/com/ecommerce/order/outbox/OrderOutboxRepository.java">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/order-service/src/main/java/com/ecommerce/order/outbox/OrderOutboxRepository.java" />
+              <option name="updatedContent" value="package com.ecommerce.order.outbox;&#10;&#10;import org.springframework.data.jpa.repository.JpaRepository;&#10;import org.springframework.data.jpa.repository.Query;&#10;import org.springframework.stereotype.Repository;&#10;&#10;import java.util.List;&#10;import java.util.Optional;&#10;&#10;@Repository&#10;public interface OrderOutboxRepository extends JpaRepository&lt;OrderOutboxEntity, Long&gt; {&#10;    @Query(value = &quot;SELECT o FROM OrderOutboxEntity o WHERE o.status = 'PENDING' ORDER BY o.createdAt ASC&quot;)&#10;    List&lt;OrderOutboxEntity&gt; findPendingEvents(); // pagination handled by caller&#10;&#10;    Optional&lt;OrderOutboxEntity&gt; findByEventId(String eventId);&#10;}&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/order-service/src/main/java/com/ecommerce/order/outbox/OutboxPublisher.java">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/order-service/src/main/java/com/ecommerce/order/outbox/OutboxPublisher.java" />
+              <option name="updatedContent" value="package com.ecommerce.order.outbox;&#10;&#10;import com.ecommerce.order.event.OrderNotificationEvent;&#10;import com.fasterxml.jackson.databind.ObjectMapper;&#10;import lombok.extern.slf4j.Slf4j;&#10;import org.springframework.beans.factory.annotation.Autowired;&#10;import org.springframework.kafka.core.KafkaTemplate;&#10;import org.springframework.scheduling.annotation.Scheduled;&#10;import org.springframework.stereotype.Service;&#10;import org.springframework.transaction.annotation.Transactional;&#10;&#10;import java.time.Instant;&#10;import java.util.List;&#10;&#10;@Service&#10;@Slf4j&#10;public class OutboxPublisher {&#10;    private static final String TOPIC = &quot;order-notifications-topic&quot;;&#10;&#10;    @Autowired&#10;    private OrderOutboxRepository outboxRepository;&#10;&#10;    @Autowired&#10;    private KafkaTemplate&lt;String, OrderNotificationEvent&gt; kafkaTemplate;&#10;&#10;    @Autowired&#10;    private ObjectMapper objectMapper;&#10;&#10;    @Scheduled(fixedDelay = 5000)&#10;    public void run() {&#10;        List&lt;OrderOutboxEntity&gt; pending = outboxRepository.findPendingEvents();&#10;        for (OrderOutboxEntity o : pending) {&#10;            publishOutbox(o);&#10;        }&#10;    }&#10;&#10;    private void publishOutbox(OrderOutboxEntity outbox) {&#10;        try {&#10;            OrderNotificationEvent event = objectMapper.readValue(outbox.getPayload(), OrderNotificationEvent.class);&#10;&#10;            kafkaTemplate.send(TOPIC, outbox.getAggregateId(), event).whenComplete((meta, ex) -&gt; {&#10;                if (ex != null) {&#10;                    log.error(&quot;Failed to publish event {}: {}&quot;, outbox.getEventId(), ex.getMessage());&#10;                    markFailed(outbox);&#10;                } else {&#10;                    markSent(outbox);&#10;                    log.info(&quot;Published outbox event: {}&quot;, outbox.getEventId());&#10;                }&#10;            });&#10;        } catch (Exception e) {&#10;            log.error(&quot;Invalid outbox payload for event {}: {}&quot;, outbox.getEventId(), e.getMessage());&#10;            markFailed(outbox);&#10;        }&#10;    }&#10;&#10;    @Transactional&#10;    protected void markSent(OrderOutboxEntity outbox) {&#10;        outbox.setStatus(OrderOutboxEntity.OutboxStatus.SENT);&#10;        outbox.setPublishedAt(Instant.now());&#10;        outboxRepository.save(outbox);&#10;    }&#10;&#10;    @Transactional&#10;    protected void markFailed(OrderOutboxEntity outbox) {&#10;        outbox.setStatus(OrderOutboxEntity.OutboxStatus.FAILED);&#10;        outboxRepository.save(outbox);&#10;    }&#10;}&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+        <entry key="$PROJECT_DIR$/order-service/src/main/resources/db/migration/V1__init_order_outbox.sql">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="$PROJECT_DIR$/order-service/src/main/resources/db/migration/V1__init_order_outbox.sql" />
+              <option name="updatedContent" value="CREATE TABLE order_outbox (&#10;    id BIGINT PRIMARY KEY AUTO_INCREMENT,&#10;    event_id VARCHAR(36) NOT NULL UNIQUE,&#10;    aggregate_id VARCHAR(36) NOT NULL,&#10;    event_type VARCHAR(50) NOT NULL,&#10;    payload LONGTEXT NOT NULL,&#10;    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',&#10;    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,&#10;    published_at TIMESTAMP NULL,&#10;    INDEX idx_outbox_status_created (status, created_at),&#10;    INDEX idx_outbox_event_id (event_id)&#10;) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;&#10;" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
