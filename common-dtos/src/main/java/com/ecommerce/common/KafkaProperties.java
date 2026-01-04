@@ -28,4 +28,7 @@ public class KafkaProperties {
     public static final String PAYMENT_REFUNDED_EVENTS_TOPIC = "payment-refunded-event";
     public static final String INVENTORY_LOCK_TOPIC = "inventory-lock-topic";
     public static final String INVENTORY_LOCK_FAILED_TOPIC = "inventory-lock-failed-topic";
+
+    public static final String ORDER_PLACED_TOPIC = "order-placed-event";
+    public static final String USER_EVENTS_TOPIC = "user-events";
 }

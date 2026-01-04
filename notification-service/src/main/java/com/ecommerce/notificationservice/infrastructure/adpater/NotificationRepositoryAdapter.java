@@ -18,6 +18,7 @@ public class NotificationRepositoryAdapter implements NotificationRepositoryPort
         // Domain -> Entity
         NotificationLogEntity entity = NotificationLogEntity.builder()
                 .id(log.getId())
+                .eventId(log.getEventId())
                 .recipient(log.getRecipient())
                 .content(log.getContent())
                 .channelType(log.getChannelType())

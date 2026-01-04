@@ -1,5 +1,6 @@
 package com.ecommerce.userservice.service;
 
+import com.ecommerce.event.UserEvent;
 import com.ecommerce.userservice.api.dto.LoginRequest;
 import com.ecommerce.userservice.api.dto.RegisterRequest;
 import com.ecommerce.userservice.api.dto.UserAuthResponse; // Ensure you have this Enum
@@ -59,6 +60,15 @@ public class AuthenticationService {
                 .payload(params) // Renamed from params -> payload
                 .occurredAt(LocalDateTime.now()) // Timestamp
                 .build());
+
+        UserEvent userEvent = new UserEvent();
+        userEvent.setUserId(savedUser.getId());
+        userEvent.setEmail(savedUser.getEmail());
+        userEvent.setName(savedUser.getName());
+        userEvent.setPhone(savedUser.getPhone());
+        userEvent.setEventType("USER_WELCOME");
+        // 5. Publish User Created Event for Notification Service to store user details
+        kafkaProducer.sendUserEvent(userEvent);
 
         return UserAuthResponse.builder()
                 .token(token)

@@ -1,11 +1,13 @@
 package com.ecommerce.userservice.service;
 
+import com.ecommerce.event.UserEvent;
 import com.ecommerce.userservice.api.dto.AddressRequest;
 import com.ecommerce.userservice.api.dto.UserResponse;
 import com.ecommerce.userservice.domain.model.Address;
 import com.ecommerce.userservice.domain.model.User;
 import com.ecommerce.userservice.domain.port.UserRepositoryPort;
 import com.ecommerce.userservice.exception.CustomException;
+import com.ecommerce.userservice.infrastructure.messaging.KafkaNotificationProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,7 @@ import java.util.ArrayList;
 public class UserService {
 
     private final UserRepositoryPort userRepository;
+    private final KafkaNotificationProducer kafkaProducer;
 
     private User getUserByIdPrivate(Long id) {
         return userRepository.findById(id)
@@ -43,6 +46,17 @@ public class UserService {
         user.getAddresses().add(newAddress);
         // Save entire User (Cascade will handle Address table)
         userRepository.save(user);
+
+        UserEvent event  = new UserEvent();
+        event.setEventType("UPDATED");
+        event.setUserId(user.getId());
+        event.setName(user.getName());
+        event.setPhone(user.getPhone());
+        event.setEmail(user.getEmail());
+        event.setPhone(user.getPhone());
+
+        // Publish User Updated Event
+        kafkaProducer.sendUserEvent(event);
     }
     private UserResponse  mapToUserResponse(User user) {
         UserResponse userResponse = new UserResponse();

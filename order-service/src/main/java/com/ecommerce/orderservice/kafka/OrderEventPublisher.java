@@ -3,6 +3,7 @@ package com.ecommerce.orderservice.kafka;
 import com.ecommerce.inventory.InventoryLockEvent;
 import com.ecommerce.order.OrderCancelEvent;
 import com.ecommerce.order.OrderCreatedEvent;
+import com.ecommerce.order.OrderPlacedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -29,4 +30,10 @@ public class OrderEventPublisher {
         log.info("Publishing InventoryLockEvent for Order: {}", event.getOrderId());
         kafkaTemplate.send(INVENTORY_LOCK_TOPIC, event.getOrderId(), event);
     }
+    public void publishOrderPlacedEvent(OrderPlacedEvent event) {
+        log.info("Publishing OrderPlacedEvent for Order: {}", event.getOrderId());
+        kafkaTemplate.send(ORDER_PLACED_TOPIC, event.getOrderId(), event);
+    }
+
+
 }

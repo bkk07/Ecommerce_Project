@@ -22,7 +22,7 @@ spring:
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
 
         # 3. CRITICAL FIX: Map to YOUR NotificationEvent class
-        spring.json.value.default.type: "com.ecommerce.notificationservice.infrastructure.events.NotificationEvent"
+        # spring.json.value.default.type: "com.ecommerce.notificationservice.infrastructure.events.NotificationEvent"
 
         # 4. CRITICAL FIX: Ignore the Producer's class name headers
         spring.json.use.type.headers: false

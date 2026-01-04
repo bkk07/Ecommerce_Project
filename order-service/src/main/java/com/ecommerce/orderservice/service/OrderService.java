@@ -5,6 +5,7 @@ import com.ecommerce.inventory.InventoryLockEvent;
 import com.ecommerce.order.OrderCancelEvent;
 import com.ecommerce.order.OrderCreatedEvent;
 import com.ecommerce.order.OrderItemDto;
+import com.ecommerce.order.OrderPlacedEvent;
 import com.ecommerce.orderservice.dto.OrderResponse;
 import com.ecommerce.orderservice.entity.Order;
 import com.ecommerce.orderservice.entity.OrderItem;
@@ -112,6 +113,11 @@ public class OrderService {
         order.setStatus(OrderStatus.PLACED);
         orderRepository.save(order);
         log.info("Order Updated Successfully to PLACED for Order ID: {}", event.getOrderId());
+
+        // Publish OrderPlacedEvent
+        OrderPlacedEvent orderPlacedEvent = new OrderPlacedEvent(order.getOrderId(), order.getUserId());
+        orderEventPublisher.publishOrderPlacedEvent(orderPlacedEvent);
+        log.info("Published OrderPlacedEvent for Order ID: {}", order.getOrderId());
     }
 
     @Transactional

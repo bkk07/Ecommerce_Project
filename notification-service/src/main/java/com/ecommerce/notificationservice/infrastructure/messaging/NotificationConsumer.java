@@ -1,7 +1,7 @@
 package com.ecommerce.notificationservice.infrastructure.messaging;
 
 import com.ecommerce.notificationservice.domain.port.NotificationRepositoryPort;
-import com.ecommerce.notificationservice.infrastructure.events.NotificationEvent; // Ensure this import is correct
+import com.ecommerce.notificationservice.infrastructure.events.NotificationEvent;
 import com.ecommerce.notificationservice.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,20 +20,20 @@ public class NotificationConsumer {
     // NOTE: ObjectMapper is removed. Spring deserializes JSON -> NotificationEvent automatically now.
 
     // 1. High Priority (Urgent)
-    @KafkaListener(topics = "notifications.urgent", groupId = "notification-group")
-    public void consumeUrgent(NotificationEvent event, Acknowledgment ack) { // <--- CHANGED FROM String TO NotificationEvent
+    @KafkaListener(topics = "notifications.urgent", groupId = "notification-group", properties = "spring.json.value.default.type=com.ecommerce.notificationservice.infrastructure.events.NotificationEvent")
+    public void consumeUrgent(NotificationEvent event, Acknowledgment ack) {
         processMessage(event, "URGENT", ack);
     }
 
     // 2. Medium Priority (Transactional)
-    @KafkaListener(topics = "notifications.transactional", groupId = "notification-group")
-    public void consumeTransactional(NotificationEvent event, Acknowledgment ack) { // <--- CHANGED FROM String TO NotificationEvent
+    @KafkaListener(topics = "notifications.transactional", groupId = "notification-group", properties = "spring.json.value.default.type=com.ecommerce.notificationservice.infrastructure.events.NotificationEvent")
+    public void consumeTransactional(NotificationEvent event, Acknowledgment ack) {
         processMessage(event, "TRANSACTIONAL", ack);
     }
 
     // 3. Low Priority (Marketing)
-    @KafkaListener(topics = "notifications.marketing", groupId = "notification-group")
-    public void consumeMarketing(NotificationEvent event, Acknowledgment ack) { // <--- CHANGED FROM String TO NotificationEvent
+    @KafkaListener(topics = "notifications.marketing", groupId = "notification-group", properties = "spring.json.value.default.type=com.ecommerce.notificationservice.infrastructure.events.NotificationEvent")
+    public void consumeMarketing(NotificationEvent event, Acknowledgment ack) {
         processMessage(event, "MARKETING", ack);
     }
 

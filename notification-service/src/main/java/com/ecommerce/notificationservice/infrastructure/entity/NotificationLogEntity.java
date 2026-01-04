@@ -27,6 +27,7 @@ public class NotificationLogEntity {
     @Enumerated(EnumType.STRING)
     private NotificationStatus status;
     private int retryCount;
+    @Column(columnDefinition = "TEXT")
     private String errorMessage;
     private LocalDateTime createdAt;
 }

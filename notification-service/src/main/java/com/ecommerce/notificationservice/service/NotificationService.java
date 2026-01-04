@@ -66,7 +66,13 @@ public class NotificationService {
 
             // Update DB status to FAILED
             logEntry.setStatus(NotificationStatus.FAILED);
-            logEntry.setErrorMessage(e.getMessage());
+
+            // Truncate error message to avoid Data Truncation error
+            String errorMsg = e.getMessage();
+            if (errorMsg != null && errorMsg.length() > 255) {
+                errorMsg = errorMsg.substring(0, 255);
+            }
+            logEntry.setErrorMessage(errorMsg);
 
             // <--- CRITICAL FIX: Rethrow exception
             // This ensures the Consumer knows it failed, triggering Retry -> DLQ.
