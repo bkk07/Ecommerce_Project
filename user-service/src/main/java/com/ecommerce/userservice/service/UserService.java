@@ -55,6 +55,7 @@ public class UserService {
         event.setEmail(user.getEmail());
         event.setPhone(user.getPhone());
 
+
         // Publish User Updated Event
         kafkaProducer.sendUserEvent(event);
     }

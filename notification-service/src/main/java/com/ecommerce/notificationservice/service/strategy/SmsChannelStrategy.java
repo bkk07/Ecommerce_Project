@@ -42,7 +42,7 @@ public class SmsChannelStrategy implements NotificationChannelStrategy {
 
         try {
             if (recipient == null || recipient.isEmpty()) {
-                throw new VendorException("Recipient phone number cannot be empty");
+                throw new VendorException("Recipient phone number cannot be empty", "Recipient phone number cannot be empty");
             }
 
             // Create and Send Message
@@ -57,10 +57,10 @@ public class SmsChannelStrategy implements NotificationChannelStrategy {
         } catch (ApiException e) {
             // Handle specific Twilio errors (like invalid number, insufficient funds)
             log.error("Twilio API Error: Code {}, Message {}", e.getCode(), e.getMessage());
-            throw new VendorException("Twilio SMS failed: " + e.getMessage());
+            throw new VendorException("Twilio SMS failed: " + e.getMessage(), e.getMessage());
         } catch (Exception e) {
             log.error("Unknown SMS Error", e);
-            throw new VendorException("SMS sending failed: " + e.getMessage());
+            throw new VendorException("SMS sending failed: " + e.getMessage(), e.getMessage());
         }
     }
 

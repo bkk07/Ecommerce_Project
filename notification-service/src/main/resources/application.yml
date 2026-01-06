@@ -11,33 +11,22 @@ spring:
       group-id: notification-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-
-      # 1. USE ERROR HANDLING DESERIALIZER (Prevents infinite crash loops)
       value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
-
       enable-auto-commit: false
-
       properties:
-        # 2. DEFINE THE DELEGATE (The actual JSON parser)
         spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
-
-        # 3. CRITICAL FIX: Map to YOUR NotificationEvent class
-        # spring.json.value.default.type: "com.ecommerce.notificationservice.infrastructure.events.NotificationEvent"
-
-        # 4. CRITICAL FIX: Ignore the Producer's class name headers
         spring.json.use.type.headers: false
-
         spring.json.trusted.packages: "*"
-
     listener:
       ack-mode: MANUAL_IMMEDIATE
 
-  # ... (Rest of your config remains the same) ...
+  # ✅ MAILTRAP SMTP (DEV ONLY)
   mail:
-    host: smtp.gmail.com
-    port: 587
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
+    host: sandbox.smtp.mailtrap.io
+    port: 2525
+    username: f487a2eaccc715
+    password: 83b5362f092dc1
+    protocol: smtp
     properties:
       mail:
         smtp:

@@ -1,16 +1,18 @@
 package com.ecommerce.notificationservice.service;
 
+import com.ecommerce.notification.NotificationEvent;
 import com.ecommerce.notificationservice.domain.enumtype.NotificationStatus;
 import com.ecommerce.notificationservice.domain.model.NotificationLog;
 import com.ecommerce.notificationservice.domain.model.NotificationTemplate;
 import com.ecommerce.notificationservice.domain.port.NotificationRepositoryPort;
 import com.ecommerce.notificationservice.domain.port.TemplateRepositoryPort;
 import com.ecommerce.notificationservice.exception.TemplateNotFoundException;
-import com.ecommerce.notificationservice.infrastructure.events.NotificationEvent;
+import com.ecommerce.notificationservice.infrastructure.mapper.NotificationChannelMapper;
 import com.ecommerce.notificationservice.service.factory.ChannelStrategyFactory;
 import com.ecommerce.notificationservice.service.strategy.NotificationChannelStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -25,26 +27,40 @@ public class NotificationService {
     private final NotificationRepositoryPort notificationRepository;
     private final ChannelStrategyFactory strategyFactory;
 
-    // CHANGED: Accepts NotificationEvent now
+    // DEV namespace (Testmail)
+    @Value("${testmail.namespace:}")
+    private String testmailNamespace;
+
     public void processNotification(NotificationEvent event) {
-        log.info("Processing notification for: {} (EventID: {})", event.getRecipient(), event.getEventId());
 
-        // 1. Fetch Template
-        NotificationTemplate template = templateRepository.findByEventTypeAndChannel(
-                event.getEventType(),
-                event.getChannel() // CHANGED: getChannelType() -> getChannel()
-        ).orElseThrow(() -> new TemplateNotFoundException("No template found for " + event.getEventType()));
+        log.info("Processing notification for: {} (EventID: {})",
+                event.getRecipient(), event.getEventId());
 
-        // 2. Render Body AND Subject
-        // CHANGED: getParams() -> getPayload()
+        // 1️⃣ Fetch template
+        NotificationTemplate template =
+                templateRepository.findByEventTypeAndChannel(
+                        event.getEventType(),
+                        NotificationChannelMapper.toDomain(event.getChannel())
+                ).orElseThrow(() ->
+                        new TemplateNotFoundException(
+                                "No template found for " + event.getEventType()
+                        )
+                );
+
+        // 2️⃣ Render subject & body
         String body = renderContent(template.getBodyTemplate(), event.getPayload());
         String subject = renderContent(template.getSubject(), event.getPayload());
 
-        // 3. Create Log
+        // 3️⃣ Resolve recipient email (🔥 DEV FIX)
+        String resolvedRecipient = resolveRecipientEmail(event.getRecipient());
+
+        log.info("Resolved recipient email: {}", resolvedRecipient);
+
+        // 4️⃣ Create notification log
         NotificationLog logEntry = NotificationLog.builder()
-                .eventId(event.getEventId())       // <--- NEW: Store Event ID for Idempotency
-                .recipient(event.getRecipient())
-                .channelType(event.getChannel())   // CHANGED
+                .eventId(event.getEventId())
+                .recipient(resolvedRecipient)
+                .channelType(NotificationChannelMapper.toDomain(event.getChannel()))
                 .content(body)
                 .status(NotificationStatus.PENDING)
                 .createdAt(LocalDateTime.now())
@@ -53,42 +69,64 @@ public class NotificationService {
 
         logEntry = notificationRepository.save(logEntry);
 
-        // 4. Send via Strategy
+        // 5️⃣ Send via strategy
         try {
-            NotificationChannelStrategy strategy = strategyFactory.getStrategy(event.getChannel());
+            NotificationChannelStrategy strategy =
+                    strategyFactory.getStrategy(
+                            NotificationChannelMapper.toDomain(event.getChannel())
+                    );
 
-            // Pass Subject AND Body
-            strategy.send(event.getRecipient(), subject, body);
+            strategy.send(resolvedRecipient, subject, body);
 
             logEntry.setStatus(NotificationStatus.SENT);
+
         } catch (Exception e) {
             log.error("Failed to send notification", e);
 
-            // Update DB status to FAILED
             logEntry.setStatus(NotificationStatus.FAILED);
 
-            // Truncate error message to avoid Data Truncation error
             String errorMsg = e.getMessage();
             if (errorMsg != null && errorMsg.length() > 255) {
                 errorMsg = errorMsg.substring(0, 255);
             }
             logEntry.setErrorMessage(errorMsg);
 
-            // <--- CRITICAL FIX: Rethrow exception
-            // This ensures the Consumer knows it failed, triggering Retry -> DLQ.
+            // 🚨 Rethrow → Kafka Retry / DLQ
             throw new RuntimeException("Vendor sending failed", e);
+
         } finally {
             notificationRepository.save(logEntry);
         }
     }
 
-    // Safer Render Method (Handles nulls)
+    /**
+     * 🔥 DEV-ONLY email resolution
+     * PROD → expects real email
+     * DEV  → maps username to Testmail inbox
+     */
+    private String resolveRecipientEmail(String recipient) {
+
+        // Already an email → use as-is
+        if (recipient != null && recipient.contains("@")) {
+            return recipient;
+        }
+
+        // DEV ONLY: map to Testmail inbox
+        if (testmailNamespace != null && !testmailNamespace.isBlank()) {
+            return testmailNamespace + "." + recipient + "@inbox.testmail.app";
+        }
+
+        // Fallback (should never happen in DEV)
+        throw new IllegalArgumentException("Invalid recipient: " + recipient);
+    }
+
+    // Safe template renderer
     public String renderContent(String template, Map<String, String> params) {
         if (template == null) return "";
         String result = template;
         if (params != null) {
             for (Map.Entry<String, String> entry : params.entrySet()) {
-                String key = "\\{" + entry.getKey() + "\\}"; // Regex escape
+                String key = "\\{" + entry.getKey() + "\\}";
                 String value = entry.getValue() != null ? entry.getValue() : "";
                 result = result.replaceAll(key, value);
             }

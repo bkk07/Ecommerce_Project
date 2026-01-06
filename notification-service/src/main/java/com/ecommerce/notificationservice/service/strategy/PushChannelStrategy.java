@@ -19,7 +19,7 @@ public class PushChannelStrategy implements NotificationChannelStrategy {
             log.info("[PUSH SENT] Token: {}, Payload: {}", recipient, message);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            throw new VendorException("Push Notification Service Interrupted");
+            throw new VendorException("Push Notification Service Interrupted", e.getMessage());
         }
     }
 

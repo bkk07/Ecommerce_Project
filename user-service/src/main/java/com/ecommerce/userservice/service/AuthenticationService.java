@@ -1,6 +1,8 @@
 package com.ecommerce.userservice.service;
 
 import com.ecommerce.event.UserEvent;
+import com.ecommerce.notification.ChannelType;
+import com.ecommerce.notification.NotificationEvent;
 import com.ecommerce.userservice.api.dto.LoginRequest;
 import com.ecommerce.userservice.api.dto.RegisterRequest;
 import com.ecommerce.userservice.api.dto.UserAuthResponse; // Ensure you have this Enum
@@ -8,8 +10,6 @@ import com.ecommerce.userservice.domain.model.User;
 import com.ecommerce.userservice.domain.port.UserRepositoryPort;
 import com.ecommerce.userservice.exception.CustomException;
 import com.ecommerce.userservice.infrastructure.messaging.KafkaNotificationProducer;
-import com.ecommerce.userservice.infrastructure.messaging.event.ChannelType;
-import com.ecommerce.userservice.infrastructure.messaging.event.NotificationEvent;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -52,14 +52,15 @@ public class AuthenticationService {
         params.put("name", savedUser.getName());
 
 
-        kafkaProducer.sendNotification(NotificationEvent.builder()
-                .eventId(UUID.randomUUID().toString()) // Generate Unique ID
-                .eventType("USER_WELCOME")
-                .channel(ChannelType.EMAIL) // Enum
-                .recipient(savedUser.getEmail())
-                .payload(params) // Renamed from params -> payload
-                .occurredAt(LocalDateTime.now()) // Timestamp
-                .build());
+        NotificationEvent welcome = new NotificationEvent();
+        welcome.setEventId(UUID.randomUUID().toString());
+        welcome.setEventType("USER_WELCOME");
+        welcome.setChannel(ChannelType.EMAIL);
+        welcome.setRecipient(savedUser.getEmail());
+        welcome.setPayload(params);
+        welcome.setOccurredAt(LocalDateTime.now());
+        kafkaProducer.sendNotification(welcome);
+
 
         UserEvent userEvent = new UserEvent();
         userEvent.setUserId(savedUser.getId());
@@ -114,14 +115,14 @@ public class AuthenticationService {
         params.put("name", user.getName());
         params.put("otp", user.getForgotPasswordOtp());
 
-        kafkaProducer.sendNotification(NotificationEvent.builder()
-                .eventId(UUID.randomUUID().toString())
-                .eventType("FORGOT_PASSWORD_OTP")
-                .channel(ChannelType.EMAIL)
-                .recipient(user.getEmail())
-                .payload(params)
-                .occurredAt(LocalDateTime.now())
-                .build());
+        NotificationEvent forgotPwd = new NotificationEvent();
+        forgotPwd.setEventId(UUID.randomUUID().toString());
+        forgotPwd.setEventType("FORGOT_PASSWORD_OTP");
+        forgotPwd.setChannel(ChannelType.EMAIL);
+        forgotPwd.setRecipient(user.getEmail());
+        forgotPwd.setPayload(params);
+        forgotPwd.setOccurredAt(LocalDateTime.now());
+        kafkaProducer.sendNotification(forgotPwd);
     }
 
     // --- STEP 2: Verify OTP ---
@@ -163,14 +164,14 @@ public class AuthenticationService {
         params.put("name", user.getName());
         params.put("otp", user.getEmailVerificationOtp());
 
-        kafkaProducer.sendNotification(NotificationEvent.builder()
-                .eventId(UUID.randomUUID().toString())
-                .eventType("VERIFY_EMAIL_OTP")
-                .channel(ChannelType.EMAIL)
-                .recipient(user.getEmail())
-                .payload(params)
-                .occurredAt(LocalDateTime.now())
-                .build());
+        NotificationEvent emailOtp = new NotificationEvent();
+        emailOtp.setEventId(UUID.randomUUID().toString());
+        emailOtp.setEventType("VERIFY_EMAIL_OTP");
+        emailOtp.setChannel(ChannelType.EMAIL);
+        emailOtp.setRecipient(user.getEmail());
+        emailOtp.setPayload(params);
+        emailOtp.setOccurredAt(LocalDateTime.now());
+        kafkaProducer.sendNotification(emailOtp);
     }
 
     // --- Complete Email Verification ---
@@ -198,16 +199,15 @@ public class AuthenticationService {
         Map<String, String> params = new HashMap<>();
         params.put("otp", user.getPhoneVerificationOtp());
 
-        kafkaProducer.sendNotification(NotificationEvent.builder()
-                .eventId(UUID.randomUUID().toString())
-                .eventType("VERIFY_PHONE_OTP")
-                .channel(ChannelType.SMS)
-                .recipient(user.getPhone())
-                .payload(params)
-                .occurredAt(LocalDateTime.now())
-                .build());
+        NotificationEvent phoneOtp = new NotificationEvent();
+        phoneOtp.setEventId(UUID.randomUUID().toString());
+        phoneOtp.setEventType("VERIFY_PHONE_OTP");
+        phoneOtp.setChannel(ChannelType.SMS);
+        phoneOtp.setRecipient(user.getPhone());
+        phoneOtp.setPayload(params);
+        phoneOtp.setOccurredAt(LocalDateTime.now());
+        kafkaProducer.sendNotification(phoneOtp);
     }
-
     // --- Complete Phone Verification ---
     public void verifyPhone(Long userId, String otp) {
         User user = userRepository.findById(userId)

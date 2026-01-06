@@ -1,7 +1,7 @@
 package com.ecommerce.userservice.infrastructure.messaging;
 
 import com.ecommerce.event.UserEvent;
-import com.ecommerce.userservice.infrastructure.messaging.event.NotificationEvent;
+import com.ecommerce.notification.NotificationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;

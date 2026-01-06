@@ -1,9 +1,9 @@
 package com.ecommerce.notificationservice.infrastructure.messaging;
 
-import com.ecommerce.notificationservice.domain.enumtype.ChannelType;
+import com.ecommerce.notification.ChannelType;
+import com.ecommerce.notification.NotificationEvent;
 import com.ecommerce.notificationservice.infrastructure.entity.ProcessedEventEntity;
 import com.ecommerce.notificationservice.infrastructure.entity.UserProfileEntity;
-import com.ecommerce.notificationservice.infrastructure.events.NotificationEvent;
 import com.ecommerce.notificationservice.infrastructure.repository.JpaUserProfileRepository;
 import com.ecommerce.notificationservice.infrastructure.repository.ProcessedEventRepository;
 import com.ecommerce.notificationservice.service.NotificationService;
@@ -66,15 +66,14 @@ public class OrderNotificationConsumer {
             }
 
             // 4. Send Notification
-            NotificationEvent notificationEvent = NotificationEvent.builder()
-                    .eventId(UUID.randomUUID().toString())
-                    .eventType(event.getType().name())
-                    .recipient(user.getEmail())
-                    .channel(ChannelType.EMAIL)
-                    .payload(payload)
-                    .occurredAt(LocalDateTime.now())
-                    .build();
-            
+                NotificationEvent notificationEvent = new NotificationEvent();
+            notificationEvent.setEventId(UUID.randomUUID().toString());
+            notificationEvent.setEventType(event.getType().name());
+            notificationEvent.setRecipient(user.getEmail());
+            notificationEvent.setChannel(ChannelType.EMAIL);
+            notificationEvent.setPayload(payload);
+            notificationEvent.setOccurredAt(LocalDateTime.now());
+
             notificationService.processNotification(notificationEvent);
 
             // 5. Mark Event as Processed
