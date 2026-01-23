@@ -4,6 +4,8 @@ import com.ecommerce.productservice.domain.entity.OutboxEvent;
 import com.ecommerce.productservice.domain.repository.OutboxRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -20,14 +22,16 @@ public class OutboxPublisher {
 
     private final OutboxRepository outboxRepo;
     private final KafkaTemplate<String, String> kafkaTemplate;
-    // Run every 5 seconds (Adjust to 500ms for high-speed systems)
-    @Scheduled(fixedDelay = 5000)
-    @Transactional // Ensure DB update happens only if Kafka send succeeds
+
+    // Run every 500ms for higher responsiveness
+    @Scheduled(fixedDelay = 500)
+    @Transactional
     public void publishEvents() {
 
         // 1. Fetch unprocessed events (Oldest first)
-        // You might want to limit this to 50 at a time to avoid memory spikes
-        List<OutboxEvent> events = outboxRepo.findByProcessedFalseOrderByCreatedAtAsc();
+        // Batch size of 50 prevents memory spikes and long transactions
+        Pageable limit = PageRequest.of(0, 50);
+        List<OutboxEvent> events = outboxRepo.findByProcessedFalseOrderByCreatedAtAsc(limit);
 
         if (events.isEmpty()) {
             return;
@@ -37,27 +41,24 @@ public class OutboxPublisher {
 
         for (OutboxEvent event : events) {
             try {
-                // 2. Send to Kafka
-                // Key = AggregateID (Product ID) -> Ensures ordering for that product
-                kafkaTemplate.send(PRODUCT_EVENTS_TOPIC, event.getAggregateId(), event.getPayload())
-                        .whenComplete((result, ex) -> {
-                            if (ex != null) {
-                                log.error("Failed to send event ID: {}", event.getId(), ex);
-                                // Logic to handle failure (e.g., retry count) could go here
-                            }
-                        });
+                // 2. Send to Kafka Synchronously
+                // Blocking here ensures we only mark 'processed' if Kafka actually accepts the message.
+                // This guarantees "At-Least-Once" delivery.
+                kafkaTemplate.send(PRODUCT_EVENTS_TOPIC, event.getAggregateId(), event.getPayload()).get();
 
-                // 3. Mark as Processed immediately (Optimistic approach)
-                // In a stricter system, you'd wait for the future callback,
-                // but inside @Transactional, this works well for simple cases.
+                // 3. Mark as Processed
                 event.setProcessed(true);
 
             } catch (Exception e) {
-                log.error("Error processing outbox event: {}", event.getId(), e);
+                log.error("Failed to send event ID: {}", event.getId(), e);
+                // If Kafka send fails, we do NOT mark as processed.
+                // The event will be retried in the next polling cycle.
             }
         }
 
         // 4. Save updated status to DB
+        // If this fails, the transaction rolls back, 'processed' remains false,
+        // and we resend the message next time (Duplicate). Consumers must be idempotent.
         outboxRepo.saveAll(events);
     }
 }
