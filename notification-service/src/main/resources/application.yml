@@ -20,19 +20,23 @@ spring:
     listener:
       ack-mode: MANUAL_IMMEDIATE
 
-  # ✅ MAILTRAP SMTP (DEV ONLY)
+  # ✅ GMAIL SMTP (Real Delivery to Testmail.app)
   mail:
-    host: sandbox.smtp.mailtrap.io
-    port: 2525
-    username: f487a2eaccc715
-    password: 83b5362f092dc1
+    host: smtp.gmail.com
+    port: 587
+    username: ${GMAIL_USERNAME}      # ⚠️ Replace with your real Gmail address
+    password: ${GMAIL_APP_PASSWORD}  # ⚠️ Replace with your Gmail App Password (NOT your login password)
     protocol: smtp
+    from: ${GMAIL_USERNAME}          # ✅ Ensure 'from' matches the username
     properties:
       mail:
         smtp:
           auth: true
           starttls:
             enable: true
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
 
   datasource:
     url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&serverTimezone=UTC
@@ -49,6 +53,10 @@ spring:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
+
+# Testmail.app Configuration
+testmail:
+  namespace: "wj1d8"
 
 eureka:
   client:

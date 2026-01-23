@@ -1,5 +1,6 @@
 package com.ecommerce.userservice.infrastructure.entity;
 
+import com.ecommerce.userservice.domain.model.enums.Role;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -18,6 +19,9 @@ public class UserEntity {
     @Column(nullable = false, unique = true) private String email;
     @Column(nullable = false) private String password;
     private String phone;
+
+    @Enumerated(EnumType.STRING)
+    private Role role;
 
     private boolean isEmailVerified;
     private boolean isPhoneVerified;

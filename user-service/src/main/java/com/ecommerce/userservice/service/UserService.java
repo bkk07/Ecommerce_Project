@@ -5,27 +5,34 @@ import com.ecommerce.userservice.api.dto.AddressRequest;
 import com.ecommerce.userservice.api.dto.UserResponse;
 import com.ecommerce.userservice.domain.model.Address;
 import com.ecommerce.userservice.domain.model.User;
+import com.ecommerce.userservice.domain.port.NotificationProducerPort;
 import com.ecommerce.userservice.domain.port.UserRepositoryPort;
 import com.ecommerce.userservice.exception.CustomException;
-import com.ecommerce.userservice.infrastructure.messaging.KafkaNotificationProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
 import java.util.ArrayList;
+
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepositoryPort userRepository;
-    private final KafkaNotificationProducer kafkaProducer;
+    private final NotificationProducerPort notificationProducer;
 
     private User getUserByIdPrivate(Long id) {
         return userRepository.findById(id)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
     }
+
+    @Transactional(readOnly = true)
     public UserResponse getUserById(Long id) {
         return mapToUserResponse(getUserByIdPrivate(id));
     }
+
+    @Transactional
     public void addAddress(Long userId, AddressRequest request) {
         User user = getUserByIdPrivate(userId);
         // Convert DTO to Domain
@@ -57,7 +64,7 @@ public class UserService {
 
 
         // Publish User Updated Event
-        kafkaProducer.sendUserEvent(event);
+        notificationProducer.sendUserEvent(event);
     }
     private UserResponse  mapToUserResponse(User user) {
         UserResponse userResponse = new UserResponse();

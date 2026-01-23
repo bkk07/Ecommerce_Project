@@ -1,6 +1,6 @@
 package com.ecommerce.userservice.domain.model.enums;
 
-public enum NotificationType {
-    EMAIL,
-    SMS
+public enum Role {
+    USER,
+    ADMIN
 }

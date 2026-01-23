@@ -5,15 +5,17 @@ import com.ecommerce.notification.ChannelType;
 import com.ecommerce.notification.NotificationEvent;
 import com.ecommerce.userservice.api.dto.LoginRequest;
 import com.ecommerce.userservice.api.dto.RegisterRequest;
-import com.ecommerce.userservice.api.dto.UserAuthResponse; // Ensure you have this Enum
+import com.ecommerce.userservice.api.dto.UserAuthResponse;
 import com.ecommerce.userservice.domain.model.User;
+import com.ecommerce.userservice.domain.model.enums.Role;
+import com.ecommerce.userservice.domain.port.NotificationProducerPort;
 import com.ecommerce.userservice.domain.port.UserRepositoryPort;
 import com.ecommerce.userservice.exception.CustomException;
-import com.ecommerce.userservice.infrastructure.messaging.KafkaNotificationProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -27,9 +29,10 @@ public class AuthenticationService {
     private final UserRepositoryPort userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final KafkaNotificationProducer kafkaProducer;
+    private final NotificationProducerPort notificationProducer;
 
     // --- Register ---
+    @Transactional
     public UserAuthResponse register(RegisterRequest request) {
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new CustomException("Email already taken", HttpStatus.CONFLICT);
@@ -40,13 +43,14 @@ public class AuthenticationService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone())
+                .role(Role.USER)
                 .isEmailVerified(false)
                 .isPhoneVerified(false)
                 .build();
         // 2. Save User
         User savedUser = userRepository.save(newUser);
         // 3. Generate Token
-        String token = jwtService.generateToken(savedUser.getId().toString(), "USER");
+        String token = jwtService.generateToken(savedUser.getId().toString(), savedUser.getRole().name());
         // 4. Send Welcome Notification
         Map<String, String> params = new HashMap<>();
         params.put("name", savedUser.getName());
@@ -59,47 +63,69 @@ public class AuthenticationService {
         welcome.setRecipient(savedUser.getEmail());
         welcome.setPayload(params);
         welcome.setOccurredAt(LocalDateTime.now());
-        kafkaProducer.sendNotification(welcome);
+        notificationProducer.sendNotification(welcome);
 
 
+        return getUserAuthResponse(savedUser, token);
+    }
+
+    @Transactional
+    public UserAuthResponse registerAdmin(RegisterRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new CustomException("Email already taken", HttpStatus.CONFLICT);
+        }
+        // 1. Create User
+        User newUser = User.builder()
+                .name(request.getName())
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .phone(request.getPhone())
+                .role(Role.ADMIN)
+                .isEmailVerified(true) // Admins might be auto-verified or follow a different flow
+                .isPhoneVerified(true)
+                .build();
+        // 2. Save User
+        User savedUser = userRepository.save(newUser);
+        // 3. Generate Token
+        String token = jwtService.generateToken(savedUser.getId().toString(), savedUser.getRole().name());
+        
+        // 4. Publish User Created Event for Notification Service to store user details
+        return getUserAuthResponse(savedUser, token);
+    }
+
+    private UserAuthResponse getUserAuthResponse(User savedUser, String token) {
         UserEvent userEvent = new UserEvent();
         userEvent.setUserId(savedUser.getId());
         userEvent.setEmail(savedUser.getEmail());
         userEvent.setName(savedUser.getName());
         userEvent.setPhone(savedUser.getPhone());
         userEvent.setEventType("USER_WELCOME");
-        // 5. Publish User Created Event for Notification Service to store user details
-        kafkaProducer.sendUserEvent(userEvent);
+        notificationProducer.sendUserEvent(userEvent);
 
         return UserAuthResponse.builder()
                 .token(token)
                 .userId(savedUser.getId())
-                .role("USER")
+                .role(savedUser.getRole().name())
                 .build();
     }
 
+    @Transactional(readOnly = true)
     public UserAuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new CustomException("Invalid Credentials", HttpStatus.UNAUTHORIZED));
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new CustomException("Invalid Credentials", HttpStatus.UNAUTHORIZED);
         }
-        if(request.getEmail().equals("admin")){
-        String tokenTemp = jwtService.generateToken(user.getId().toString(), "ADMIN");
-            return UserAuthResponse.builder()
-                    .token(tokenTemp)
-                    .userId(user.getId())
-                    .role("ADMIN")
-                    .build();
-        }
-        String token = jwtService.generateToken(user.getId().toString(), "USER");
+        
+        String token = jwtService.generateToken(user.getId().toString(), user.getRole().name());
         return UserAuthResponse.builder()
                 .token(token)
                 .userId(user.getId())
-                .role("USER")
+                .role(user.getRole().name())
                 .build();
     }
 
+    @Transactional
     public void initiateForgotPassword(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
@@ -122,10 +148,11 @@ public class AuthenticationService {
         forgotPwd.setRecipient(user.getEmail());
         forgotPwd.setPayload(params);
         forgotPwd.setOccurredAt(LocalDateTime.now());
-        kafkaProducer.sendNotification(forgotPwd);
+        notificationProducer.sendNotification(forgotPwd);
     }
 
     // --- STEP 2: Verify OTP ---
+    @Transactional
     public void verifyForgotPasswordOtp(String email, String otp) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
@@ -135,6 +162,7 @@ public class AuthenticationService {
     }
 
     // --- STEP 3: Change Password ---
+    @Transactional
     public void forgotPassword(String email, String newPassword) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
@@ -148,6 +176,7 @@ public class AuthenticationService {
     }
 
     // --- Initiate Email Verification ---
+    @Transactional
     public void initiateEmailVerification(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
@@ -171,10 +200,11 @@ public class AuthenticationService {
         emailOtp.setRecipient(user.getEmail());
         emailOtp.setPayload(params);
         emailOtp.setOccurredAt(LocalDateTime.now());
-        kafkaProducer.sendNotification(emailOtp);
+        notificationProducer.sendNotification(emailOtp);
     }
 
     // --- Complete Email Verification ---
+    @Transactional
     public void verifyEmail(Long userId, String otp) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
@@ -184,6 +214,7 @@ public class AuthenticationService {
     }
 
     // --- Initiate Phone Verification ---
+    @Transactional
     public void initiatePhoneVerification(Long userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
@@ -206,9 +237,10 @@ public class AuthenticationService {
         phoneOtp.setRecipient(user.getPhone());
         phoneOtp.setPayload(params);
         phoneOtp.setOccurredAt(LocalDateTime.now());
-        kafkaProducer.sendNotification(phoneOtp);
+        notificationProducer.sendNotification(phoneOtp);
     }
     // --- Complete Phone Verification ---
+    @Transactional
     public void verifyPhone(Long userId, String otp) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));

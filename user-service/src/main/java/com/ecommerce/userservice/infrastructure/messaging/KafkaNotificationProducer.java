@@ -2,6 +2,7 @@ package com.ecommerce.userservice.infrastructure.messaging;
 
 import com.ecommerce.event.UserEvent;
 import com.ecommerce.notification.NotificationEvent;
+import com.ecommerce.userservice.domain.port.NotificationProducerPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -10,19 +11,21 @@ import org.springframework.stereotype.Component;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class KafkaNotificationProducer {
+public class KafkaNotificationProducer implements NotificationProducerPort {
     private final KafkaTemplate<String, Object> kafkaTemplate;
     // Define your topics
     private static final String TOPIC_URGENT = "notifications.urgent";
     private static final String TOPIC_TRANSACTIONAL = "notifications.transactional";
     private static final String TOPIC_USER_EVENTS = "user-events";
 
+    @Override
     public void sendNotification(NotificationEvent request) {
         String topic = determineTopic(request.getEventType());
         log.info("Sending Kafka Event: {} to Topic: {}", request.getEventType(), topic);
         kafkaTemplate.send(topic, request);
     }
 
+    @Override
     public void sendUserEvent(UserEvent event) {
         log.info("Sending User Event: {} to Topic: {}", event.getEventType(), TOPIC_USER_EVENTS);
         kafkaTemplate.send(TOPIC_USER_EVENTS, event);

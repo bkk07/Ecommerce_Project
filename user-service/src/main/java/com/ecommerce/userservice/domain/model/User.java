@@ -1,5 +1,6 @@
 package com.ecommerce.userservice.domain.model;
 
+import com.ecommerce.userservice.domain.model.enums.Role;
 import com.ecommerce.userservice.exception.CustomException; // Ensure you have this
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -21,6 +22,7 @@ public class User {
     private String email;
     private String phone;
     private String password;
+    private Role role;
     private boolean isEmailVerified;
     private boolean isPhoneVerified;
     private List<Address> addresses;

@@ -52,7 +52,8 @@ public class NotificationService {
         String subject = renderContent(template.getSubject(), event.getPayload());
 
         // 3️⃣ Resolve recipient email (🔥 DEV FIX)
-        String resolvedRecipient = resolveRecipientEmail(event.getRecipient());
+        // Pass eventType to generate dynamic tag if needed
+        String resolvedRecipient = resolveRecipientEmail(event.getRecipient(), event.getEventType());
 
         log.info("Resolved recipient email: {}", resolvedRecipient);
 
@@ -102,9 +103,15 @@ public class NotificationService {
     /**
      * 🔥 DEV-ONLY email resolution
      * PROD → expects real email
-     * DEV  → maps username to Testmail inbox
+     * DEV  → maps username/tag to Testmail inbox
+     *
+     * Logic:
+     * 1. If recipient is already an email -> use it.
+     * 2. If namespace is configured:
+     *    - If recipient is a simple string (e.g. "login"), treat it as a tag.
+     *    - Construct: {namespace}.{tag}@inbox.testmail.app
      */
-    private String resolveRecipientEmail(String recipient) {
+    private String resolveRecipientEmail(String recipient, String eventType) {
 
         // Already an email → use as-is
         if (recipient != null && recipient.contains("@")) {
@@ -113,7 +120,13 @@ public class NotificationService {
 
         // DEV ONLY: map to Testmail inbox
         if (testmailNamespace != null && !testmailNamespace.isBlank()) {
-            return testmailNamespace + "." + recipient + "@inbox.testmail.app";
+            // Use the recipient string as the tag (e.g., "login", "signup")
+            // Or fallback to eventType if recipient is generic
+            String tag = (recipient != null && !recipient.isBlank()) 
+                         ? recipient.toLowerCase().replaceAll("[^a-z0-9]", "") 
+                         : eventType.toLowerCase().replaceAll("[^a-z0-9]", "");
+            
+            return testmailNamespace + "." + tag + "@inbox.testmail.app";
         }
 
         // Fallback (should never happen in DEV)

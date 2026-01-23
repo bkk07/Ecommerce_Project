@@ -21,6 +21,7 @@ public class UserPersistenceMapper {
                 .email(entity.getEmail())
                 .password(entity.getPassword())
                 .phone(entity.getPhone())
+                .role(entity.getRole())
                 .isEmailVerified(entity.isEmailVerified())
                 .isPhoneVerified(entity.isPhoneVerified())
                 .emailVerificationOtp(entity.getEmailVerificationOtp())
@@ -43,6 +44,7 @@ public class UserPersistenceMapper {
         entity.setEmail(domain.getEmail());
         entity.setPassword(domain.getPassword());
         entity.setPhone(domain.getPhone());
+        entity.setRole(domain.getRole());
         entity.setEmailVerified(domain.isEmailVerified());
         entity.setPhoneVerified(domain.isPhoneVerified());
 
