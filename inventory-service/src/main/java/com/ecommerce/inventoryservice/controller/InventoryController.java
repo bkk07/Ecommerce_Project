@@ -57,12 +57,14 @@ public class InventoryController {
     @PostMapping("/lock")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<String> lockStock(@RequestBody List<StockItem> items, @RequestParam String orderId){
+        // Ensure transactional all-or-nothing behavior for batch operations
         inventoryService.reserveStock(items, orderId);
         return ResponseEntity.ok("Stock locked for order: " + orderId);
     }
     @PostMapping("/release")
     @PreAuthorize("hasAnyRole('ADMIN', 'USER')")
     public ResponseEntity<String> releaseStock(@RequestBody List<StockItem> items, @RequestParam String orderId){
+        // Ensure transactional all-or-nothing behavior for batch operations
         inventoryService.releaseStock(items, orderId);
         return ResponseEntity.ok("Stock released for order: " + orderId);
     }

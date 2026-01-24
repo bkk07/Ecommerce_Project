@@ -4,6 +4,7 @@ import com.ecommerce.inventory.*;
 import com.ecommerce.inventoryservice.exception.InsufficientStockException;
 import com.ecommerce.inventoryservice.exception.InventoryNotFoundException;
 import com.ecommerce.inventoryservice.model.Inventory;
+import com.ecommerce.inventoryservice.model.InventoryEventType;
 import com.ecommerce.inventoryservice.model.OutboxEvent;
 import com.ecommerce.inventoryservice.model.StockReservation;
 import com.ecommerce.inventoryservice.producer.InventoryEventProducer;
@@ -60,7 +61,7 @@ public class InventoryService {
         event.setNewQuantity(quantity);
         event.setAvailable(quantity > 0);
 
-        saveToOutbox(skuCode, "InventoryUpdatedEvent", event, INVENTORY_EVENTS_TOPIC);
+        saveToOutbox(skuCode, InventoryEventType.INVENTORY_UPDATED_EVENT, event, INVENTORY_EVENTS_TOPIC);
     }
 
     @Transactional
@@ -93,7 +94,7 @@ public class InventoryService {
         event.setNewQuantity(inventory.getQuantity());
         event.setAvailable(inventory.getAvailableStock() > 0);
 
-        saveToOutbox(skuCode, "InventoryUpdatedEvent", event, INVENTORY_EVENTS_TOPIC);
+        saveToOutbox(skuCode, InventoryEventType.INVENTORY_UPDATED_EVENT, event, INVENTORY_EVENTS_TOPIC);
     }
 
     @Transactional
@@ -113,7 +114,7 @@ public class InventoryService {
             log.warn("No reservation found for Order: {} SKU: {}. Ignoring release request.", orderId, skuCode);
             // We still emit event to let Saga complete, assuming it was never reserved or already handled
             InventoryReleasedEvent releasedEvent = new InventoryReleasedEvent(orderId, skuCode, 0);
-            saveToOutbox(orderId, "InventoryReleasedEvent", releasedEvent, INVENTORY_RELEASED_EVENTS_TOPIC);
+            saveToOutbox(orderId, InventoryEventType.INVENTORY_RELEASED_EVENT, releasedEvent, INVENTORY_RELEASED_EVENTS_TOPIC);
             return;
         }
 
@@ -124,7 +125,7 @@ public class InventoryService {
             // However, to be safe for Saga completion, we can re-emit or just return.
             // Let's re-emit to be safe in case the previous event was lost before being sent to Kafka.
              InventoryReleasedEvent releasedEvent = new InventoryReleasedEvent(orderId, skuCode, reservation.getQuantity());
-             saveToOutbox(orderId, "InventoryReleasedEvent", releasedEvent, INVENTORY_RELEASED_EVENTS_TOPIC);
+             saveToOutbox(orderId, InventoryEventType.INVENTORY_RELEASED_EVENT, releasedEvent, INVENTORY_RELEASED_EVENTS_TOPIC);
             return;
         }
 
@@ -152,7 +153,7 @@ public class InventoryService {
 
         // 4. Outbox Pattern
         InventoryReleasedEvent releasedEvent = new InventoryReleasedEvent(orderId, skuCode, quantityToRelease);
-        saveToOutbox(orderId, "InventoryReleasedEvent", releasedEvent, INVENTORY_RELEASED_EVENTS_TOPIC);
+        saveToOutbox(orderId, InventoryEventType.INVENTORY_RELEASED_EVENT, releasedEvent, INVENTORY_RELEASED_EVENTS_TOPIC);
     }
 
     @Transactional
@@ -178,15 +179,15 @@ public class InventoryService {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void handleLockFailure(String orderId, String reason) {
         InventoryLockFailedEvent failedEvent = new InventoryLockFailedEvent(orderId, reason);
-        saveToOutbox(orderId, "InventoryLockFailedEvent", failedEvent, INVENTORY_LOCK_FAILED_TOPIC);
+        saveToOutbox(orderId, InventoryEventType.INVENTORY_LOCK_FAILED_EVENT, failedEvent, INVENTORY_LOCK_FAILED_TOPIC);
     }
 
-    private void saveToOutbox(String aggregateId, String eventType, Object event, String topic) {
+    private void saveToOutbox(String aggregateId, InventoryEventType eventType, Object event, String topic) {
         try {
             String payload = objectMapper.writeValueAsString(event);
             OutboxEvent outboxEvent = OutboxEvent.builder()
                     .aggregateId(aggregateId)
-                    .eventType(eventType)
+                    .eventType(eventType.getEventName())
                     .payload(payload)
                     .topic(topic)
                     .processed(false)

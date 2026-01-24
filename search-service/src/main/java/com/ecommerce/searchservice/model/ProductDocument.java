@@ -15,23 +15,33 @@ import java.math.BigDecimal;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-// "indexName" is like the Table Name in MySQL
 @Document(indexName = "product")
 public class ProductDocument {
 
     @Id
     private String id; // This will store the SKU Code as unique identifier
+
     @Field(type = FieldType.Long, name = "productId")
     private Long productId;
 
     @Field(type = FieldType.Text, name = "name")
     private String name;
+
     @Field(type = FieldType.Text, name = "description")
     private String description;
+
     @Field(type = FieldType.Keyword, name = "skuCode")
     private String skuCode;
+
     @Field(type = FieldType.Double, name = "price")
     private BigDecimal price;
+
     @Field(type = FieldType.Boolean, name = "isInStock")
     private boolean isInStock;
+
+    @Field(type = FieldType.Keyword, name = "category")
+    private String category;
+
+    @Field(type = FieldType.Keyword, name = "brand")
+    private String brand;
 }

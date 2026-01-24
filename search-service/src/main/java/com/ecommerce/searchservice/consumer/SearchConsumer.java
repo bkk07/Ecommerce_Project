@@ -30,6 +30,10 @@ public class SearchConsumer {
                 .description(event.getDescription())
                 .price(event.getPrice())
                 .isInStock(false) // Default to false
+                // Assuming the event might not have these yet, setting defaults or nulls
+                // Ideally, ProductCreatedEvent should be updated to include category and brand
+                .category("Uncategorized")
+                .brand("Generic")
                 .build();
 
         productRepository.save(product);
