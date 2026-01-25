@@ -1,6 +1,7 @@
 package com.ecommerce.orderservice.service;
 
 import com.ecommerce.checkout.CreateOrderCommand;
+import com.ecommerce.checkout.OrderCheckoutResponse;
 import com.ecommerce.inventory.InventoryLockEvent;
 import com.ecommerce.order.*;
 import com.ecommerce.orderservice.dto.OrderResponse;
@@ -9,6 +10,7 @@ import com.ecommerce.orderservice.entity.OrderItem;
 import com.ecommerce.orderservice.entity.OrderOutbox;
 import com.ecommerce.orderservice.entity.OutboxStatus;
 import com.ecommerce.orderservice.enums.OrderStatus;
+import com.ecommerce.orderservice.feign.PaymentFeign;
 import com.ecommerce.orderservice.kafka.OrderEventPublisher;
 import com.ecommerce.orderservice.mapper.OrderMapper;
 import com.ecommerce.orderservice.repository.OrderOutboxRepository;
@@ -37,10 +39,11 @@ public class OrderService {
     private final OrderMapper orderMapper;
     private final OrderOutboxRepository orderOutboxRepository;
     private final ObjectMapper objectMapper;
+    private final PaymentFeign paymentFeign;
 
     // 1. CREATE (Triggered by Kafka CreateOrderCommand)
     @Transactional
-    public void createOrder(CreateOrderCommand command) {
+    public OrderCheckoutResponse createOrder(CreateOrderCommand command) {
         log.info("Order Service is Processing Create Order Command for User: {}", command.getUserId());
         
         String orderId = UUID.randomUUID().toString();
@@ -79,9 +82,12 @@ public class OrderService {
         event.setTotalAmount(command.getTotalAmount());
         event.setItems(command.getItems());
         event.setAddressDTO(command.getAddressDTO());
-        
-        orderEventPublisher.publishOrderCreatedEvent(event);
-        log.info("Published OrderCreatedEvent for Order ID: {}", orderId);
+
+        PaymentInitiatedEvent paymentInitiatedEvent = paymentFeign.createPayment(event);
+//        orderEventPublisher.publishOrderCreatedEvent(event);
+//        log.info("Published OrderCreatedEvent for Order ID: {}", orderId);
+
+        return new OrderCheckoutResponse(paymentInitiatedEvent.getOrderId());
     }
 
     // 2. READ: Get My Orders (Returns DTOs)

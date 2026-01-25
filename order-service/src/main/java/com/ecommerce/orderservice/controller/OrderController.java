@@ -1,5 +1,7 @@
 package com.ecommerce.orderservice.controller;
 
+import com.ecommerce.checkout.CreateOrderCommand;
+import com.ecommerce.checkout.OrderCheckoutResponse;
 import com.ecommerce.orderservice.dto.OrderResponse;
 import com.ecommerce.orderservice.enums.OrderStatus;
 import com.ecommerce.orderservice.service.OrderService;
@@ -29,4 +31,9 @@ public class OrderController {
         return ResponseEntity.ok(orderService.updateStateOfTheOrder(orderNumber,status));
 
     }
+    @PostMapping("/create/order")
+    public ResponseEntity<OrderCheckoutResponse> createCheckoutOrder(@RequestBody CreateOrderCommand createOrderCommand) {
+        return ResponseEntity.ok(orderService.createOrder(createOrderCommand));
+    }
+
 }

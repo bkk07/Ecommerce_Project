@@ -1,5 +1,7 @@
 package com.ecommerce.paymentservice.controller;
+import com.ecommerce.order.OrderCreatedEvent;
 import com.ecommerce.payment.PaymentCreateRequest;
+import com.ecommerce.payment.PaymentInitiatedEvent;
 import com.ecommerce.payment.VerifyPaymentRequest;
 import com.ecommerce.paymentservice.service.PaymentService;
 import lombok.RequiredArgsConstructor;
@@ -27,5 +29,10 @@ public class PaymentController {
     public ResponseEntity<String> verifyPayment(@RequestBody VerifyPaymentRequest request) {
         paymentService.verifyPayment(request);
         return ResponseEntity.ok("Payment Verified. Waiting for confirmation.");
+    }
+
+    @PostMapping("/create")
+    public ResponseEntity<PaymentInitiatedEvent> createPayment(@RequestBody OrderCreatedEvent request) {
+        return ResponseEntity.ok(paymentService.handleOrderCreated(request));
     }
 }

@@ -52,12 +52,12 @@ public class PaymentService {
      * Creates Razorpay Order and publishes PaymentInitiatedEvent
      */
     @Transactional
-    public void handleOrderCreated(OrderCreatedEvent event) {
+    public PaymentInitiatedEvent handleOrderCreated(OrderCreatedEvent event) {
         // Idempotency Check
         Optional<Payment> existingPayment = paymentRepository.findByOrderId(event.getOrderId());
         if (existingPayment.isPresent()) {
             log.info("Payment already initiated for Order: {}", event.getOrderId());
-            return;
+            throw  new RuntimeException("Payment already initiated for Order: " + event.getOrderId());
         }
 
         try {
@@ -98,7 +98,8 @@ public class PaymentService {
                     event.getTotalAmount(),
                     event.getUserId()
             );
-            eventProducer.publishPaymentInitiated(initiatedEvent);
+//            eventProducer.publishPaymentInitiated(initiatedEvent);
+            return initiatedEvent;
 
         } catch (Exception e) {
             log.error("Failed to create Razorpay order for Order: {}", event.getOrderId(), e);

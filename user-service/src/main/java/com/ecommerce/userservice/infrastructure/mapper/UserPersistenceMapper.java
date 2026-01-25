@@ -2,6 +2,7 @@ package com.ecommerce.userservice.infrastructure.mapper;
 
 import com.ecommerce.userservice.domain.model.Address;
 import com.ecommerce.userservice.domain.model.User;
+import com.ecommerce.userservice.domain.model.enums.Role;
 import com.ecommerce.userservice.infrastructure.entity.AddressEntity;
 import com.ecommerce.userservice.infrastructure.entity.UserEntity;
 import org.springframework.stereotype.Component;
@@ -21,7 +22,7 @@ public class UserPersistenceMapper {
                 .email(entity.getEmail())
                 .password(entity.getPassword())
                 .phone(entity.getPhone())
-                .role(entity.getRole())
+                .role(entity.getRole() != null ? entity.getRole() : Role.USER)
                 .isEmailVerified(entity.isEmailVerified())
                 .isPhoneVerified(entity.isPhoneVerified())
                 .emailVerificationOtp(entity.getEmailVerificationOtp())

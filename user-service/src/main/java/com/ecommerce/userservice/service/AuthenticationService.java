@@ -117,11 +117,12 @@ public class AuthenticationService {
             throw new CustomException("Invalid Credentials", HttpStatus.UNAUTHORIZED);
         }
         
-        String token = jwtService.generateToken(user.getId().toString(), user.getRole().name());
+        Role role = user.getRole() != null ? user.getRole() : Role.USER;
+        String token = jwtService.generateToken(user.getId().toString(), role.name());
         return UserAuthResponse.builder()
                 .token(token)
                 .userId(user.getId())
-                .role(user.getRole().name())
+                .role(role.name())
                 .build();
     }
 
