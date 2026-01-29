@@ -50,6 +50,10 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
 
             logger.info("AuthFilter: Incoming request path: {}", path);
 
+            if (request.getMethod() == HttpMethod.OPTIONS) {
+                return chain.filter(exchange);
+            }
+
             // 1. Bypass Public Endpoints
             if (path.startsWith("/auth") ||
                     path.equals("/api/users/register") ||

@@ -168,14 +168,16 @@ public class SearchService {
     /* ================= MAPPER ================= */
 
     private ProductResponse mapToProductResponse(ProductDocument doc) {
-
         ProductResponse response = new ProductResponse();
+        log.info(doc.getCategory());
         response.setId(doc.getProductId());
         response.setName(doc.getName());
         response.setDescription(doc.getDescription());
         response.setPrice(doc.getPrice());
         response.setSkuCode(doc.getSkuCode());
+        response.setImageUrl(doc.getImageUrl());
 
         return response;
     }
 }
+

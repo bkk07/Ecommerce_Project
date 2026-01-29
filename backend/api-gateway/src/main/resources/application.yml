@@ -6,24 +6,6 @@ spring:
     name: api-gateway
   cloud:
     gateway:
-      cloud:
-        gateway:
-          globalcors:
-            corsConfigurations:
-              '[/**]':
-                allowedOrigins:
-                  - "http://localhost:63342"
-                allowedMethods:
-                  - GET
-                  - POST
-                  - PUT
-                  - DELETE
-                  - OPTIONS
-                allowedHeaders:
-                  - "*"
-                allowCredentials: true
-
-
       discovery:
         locator:
           enabled: true
@@ -54,7 +36,7 @@ spring:
           uri: lb://PRODUCT-SERVICE
           predicates:
             - Path=/api/v1/products/**, /api/v1/categories/**
-            - Method=GET
+            - Method=GET, OPTIONS
 
         # --- Route B: Admin Write Access (POST, PUT, DELETE) ---
         # "Only Admins can change data"
@@ -63,7 +45,7 @@ spring:
           uri: lb://PRODUCT-SERVICE
           predicates:
             - Path=/api/v1/products/**, /api/v1/categories/**, /api/v1/images/**
-            - Method=POST, PUT, DELETE
+            - Method=POST, PUT, DELETE, OPTIONS
           filters:
             - name: AuthFilter        # <--- Matches your Java Class Name
               args:
@@ -77,13 +59,13 @@ spring:
           uri: lb://INVENTORY-SERVICE
           predicates:
             - Path=/api/v1/inventory/**
-            - Method=GET
+            - Method=GET, OPTIONS
 
         - id: inventory-service-write
           uri: lb://INVENTORY-SERVICE
           predicates:
             - Path=/api/v1/inventory/**
-            - Method=POST, PUT, DELETE, PATCH
+            - Method=POST, PUT, DELETE, PATCH, OPTIONS
           filters:
             - name: AuthFilter        # <--- Matches your Java Class Name
               args:
@@ -95,14 +77,14 @@ spring:
           uri: lb://SEARCH-SERVICE
           predicates:
               - Path=/api/v1/search/**
-              - Method=GET,DELETE
+              - Method=GET,DELETE,OPTIONS
       # No filters needed because search is public for everyone
         #This one is allowed to the admin
         - id: cart-service-write
           uri: lb://CART-SERVICE
           predicates:
             - Path=/api/v1/cart/**
-            - Method=POST, PUT, DELETE, PATCH, GET
+            - Method=POST, PUT, DELETE, PATCH, GET, OPTIONS
           filters:
             - name: AuthFilter        # <--- Matches your Java Class Name
               args:
@@ -111,7 +93,7 @@ spring:
           uri: lb://CHECKOUT-SERVICE
           predicates:
             - Path=/api/checkout/**
-            - Method=POST, PUT, DELETE, PATCH, GET
+            - Method=POST, PUT, DELETE, PATCH, GET, OPTIONS
           filters:
             - name: AuthFilter        # <--- Matches your Java Class Name
               args:
@@ -121,13 +103,13 @@ spring:
           uri: lb://PAYMENT-SERVICE
           predicates:
             - Path=/api/payments/**
-            - Method=POST, PUT, DELETE, PATCH, GET
+            - Method=POST, PUT, DELETE, PATCH, GET, OPTIONS
 
         - id: order-service
           uri: lb://ORDER-SERVICE
           predicates:
             - Path=/api/orders/**
-            - Method=POST, PUT, DELETE, PATCH, GET
+            - Method=POST, PUT, DELETE, PATCH, GET, OPTIONS
 
 
 

@@ -8,15 +8,22 @@ public class ProductResponse {
     private String description;
     private BigDecimal price;
     private String skuCode;
+    private String imageUrl;
     public ProductResponse(){};
-    public ProductResponse(Long id, String name, String description, BigDecimal price, String skuCode) {
+    public ProductResponse(Long id, String name, String description, BigDecimal price, String skuCode,String imageUrl) {
         this.id = id;
         this.name = name;
         this.description = description;
         this.price = price;
         this.skuCode = skuCode;
+        this.imageUrl = imageUrl;
     }
-
+    public String getImageUrl(){
+        return this.imageUrl;
+    }
+    public void setImageUrl(String imageUrl){
+        this.imageUrl = imageUrl;
+    }
     public Long getId() {
         return id;
     }
