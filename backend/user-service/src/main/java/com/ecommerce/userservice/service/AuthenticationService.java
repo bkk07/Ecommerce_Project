@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -34,9 +35,17 @@ public class AuthenticationService {
     // --- Register ---
     @Transactional
     public UserAuthResponse register(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new CustomException("Email already taken", HttpStatus.CONFLICT);
+        Optional<User> existingUserOpt = userRepository.findByEmail(request.getEmail());
+        if (existingUserOpt.isPresent()) {
+            User existingUser = existingUserOpt.get();
+            if (existingUser.isEmailVerified()) {
+                throw new CustomException("Email already taken", HttpStatus.CONFLICT);
+            }
+            // Resend verification if user exists but not verified
+            sendVerificationEmail(existingUser);
+            throw new CustomException("Email already registered but not verified. Please verify your email.", HttpStatus.FORBIDDEN);
         }
+
         // 1. Create User
         User newUser = User.builder()
                 .name(request.getName())
@@ -47,26 +56,18 @@ public class AuthenticationService {
                 .isEmailVerified(false)
                 .isPhoneVerified(false)
                 .build();
+
         // 2. Save User
         User savedUser = userRepository.save(newUser);
-        // 3. Generate Token
-        String token = jwtService.generateToken(savedUser.getId().toString(), savedUser.getRole().name());
-        // 4. Send Welcome Notification
-        Map<String, String> params = new HashMap<>();
-        params.put("name", savedUser.getName());
 
+        // 3. Send Verification Email
+        sendVerificationEmail(savedUser);
 
-        NotificationEvent welcome = new NotificationEvent();
-        welcome.setEventId(UUID.randomUUID().toString());
-        welcome.setEventType("USER_WELCOME");
-        welcome.setChannel(ChannelType.EMAIL);
-        welcome.setRecipient(savedUser.getEmail());
-        welcome.setPayload(params);
-        welcome.setOccurredAt(LocalDateTime.now());
-        notificationProducer.sendNotification(welcome);
-
-
-        return getUserAuthResponse(savedUser, token);
+        // 4. Return response (No Token)
+        return UserAuthResponse.builder()
+                .userId(savedUser.getId())
+                .role(savedUser.getRole().name())
+                .build();
     }
 
     @Transactional
@@ -109,12 +110,17 @@ public class AuthenticationService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public UserAuthResponse login(LoginRequest request) {
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new CustomException("Invalid Credentials", HttpStatus.UNAUTHORIZED));
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new CustomException("Invalid Credentials", HttpStatus.UNAUTHORIZED);
+        }
+
+        if (!user.isEmailVerified()) {
+            sendVerificationEmail(user);
+            throw new CustomException("Please verify your email. Verification email sent.", HttpStatus.FORBIDDEN);
         }
         
         Role role = user.getRole() != null ? user.getRole() : Role.USER;
@@ -186,32 +192,36 @@ public class AuthenticationService {
             throw new CustomException("Email already verified", HttpStatus.BAD_REQUEST);
         }
 
-        user.generateEmailOtp();
-        userRepository.save(user);
-
-        // Send OTP via Kafka
-        Map<String, String> params = new HashMap<>();
-        params.put("name", user.getName());
-        params.put("otp", user.getEmailVerificationOtp());
-
-        NotificationEvent emailOtp = new NotificationEvent();
-        emailOtp.setEventId(UUID.randomUUID().toString());
-        emailOtp.setEventType("VERIFY_EMAIL_OTP");
-        emailOtp.setChannel(ChannelType.EMAIL);
-        emailOtp.setRecipient(user.getEmail());
-        emailOtp.setPayload(params);
-        emailOtp.setOccurredAt(LocalDateTime.now());
-        notificationProducer.sendNotification(emailOtp);
+        sendVerificationEmail(user);
     }
 
     // --- Complete Email Verification ---
     @Transactional
-    public void verifyEmail(Long userId, String otp) {
+    public UserAuthResponse verifyEmail(Long userId, String otp) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
-
         user.validateEmailOtp(otp);
         userRepository.save(user);
+        // 4. Send Welcome Notification
+        Map<String, String> params = new HashMap<>();
+        params.put("name", user.getName());
+
+        String token = jwtService.generateToken(user.getId().toString(), user.getRole().name());
+        NotificationEvent welcome = new NotificationEvent();
+        welcome.setEventId(UUID.randomUUID().toString());
+        welcome.setEventType("USER_WELCOME");
+        welcome.setChannel(ChannelType.EMAIL);
+        welcome.setRecipient(user.getEmail());
+        welcome.setPayload(params);
+        welcome.setOccurredAt(LocalDateTime.now());
+        notificationProducer.sendNotification(welcome);
+
+
+        return UserAuthResponse.builder()
+                .token(token)
+                .userId(user.getId())
+                .role(user.getRole().name())
+                .build();
     }
 
     // --- Initiate Phone Verification ---
@@ -248,5 +258,23 @@ public class AuthenticationService {
 
         user.validatePhoneOtp(otp);
         userRepository.save(user);
+    }
+
+    private void sendVerificationEmail(User user) {
+        user.generateEmailOtp();
+        userRepository.save(user);
+
+        Map<String, String> params = new HashMap<>();
+        params.put("name", user.getName());
+        params.put("otp", user.getEmailVerificationOtp());
+
+        NotificationEvent emailOtp = new NotificationEvent();
+        emailOtp.setEventId(UUID.randomUUID().toString());
+        emailOtp.setEventType("VERIFY_EMAIL_OTP");
+        emailOtp.setChannel(ChannelType.EMAIL);
+        emailOtp.setRecipient(user.getEmail());
+        emailOtp.setPayload(params);
+        emailOtp.setOccurredAt(LocalDateTime.now());
+        notificationProducer.sendNotification(emailOtp);
     }
 }

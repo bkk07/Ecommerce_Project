@@ -30,7 +30,7 @@ public class SearchConsumer {
                 .description(event.getDescription())
                 .price(event.getPrice())
                 .isInStock(false) // By Default it is false
-                .category(event.getCategory())
+                .categories(event.getCategories())
                 .brand("Generic")
                 .imageUrl(event.getImageUrl())
                 .build();

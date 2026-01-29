@@ -70,9 +70,8 @@ public class AuthenticationController {
 
     // Step B: Verify OTP (FIXED PARAMETERS)
     @PostMapping("/verify-email")
-    public ResponseEntity<?> verifyEmail(@RequestParam Long userId, @RequestParam String otp) {
-        authService.verifyEmail(userId, otp); // Now passes both arguments
-        return ResponseEntity.ok(Map.of("message", "Email verified successfully"));
+    public ResponseEntity<UserAuthResponse> verifyEmail(@RequestParam Long userId, @RequestParam String otp) {
+        return ResponseEntity.ok(authService.verifyEmail(userId, otp));
     }
 
     // --- 4. Phone Verification Flow ---

@@ -10,6 +10,7 @@ import org.springframework.data.elasticsearch.annotations.Field;
 import org.springframework.data.elasticsearch.annotations.FieldType;
 
 import java.math.BigDecimal;
+import java.util.List;
 
 @Data
 @Builder
@@ -39,8 +40,8 @@ public class ProductDocument {
     @Field(type = FieldType.Boolean, name = "isInStock")
     private boolean isInStock;
 
-    @Field(type = FieldType.Keyword, name = "category")
-    private String category;
+    @Field(type = FieldType.Keyword, name = "categories")
+    private List<String> categories;
 
     @Field(type = FieldType.Keyword, name = "brand")
     private String brand;

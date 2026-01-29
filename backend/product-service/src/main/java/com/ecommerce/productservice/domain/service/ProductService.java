@@ -15,8 +15,10 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
+import java.util.ArrayList;
 
 @Service
 @RequiredArgsConstructor
@@ -87,7 +89,16 @@ public class ProductService {
     private void saveOutboxEvent(Product product) {
 
         List<OutboxEvent> outboxEvents = new java.util.ArrayList<>();
-        String categoryName = product.getCategory().getName();
+        
+        // Collect category hierarchy (Leaf -> Root)
+        List<String> categoryHierarchy = new ArrayList<>();
+        Category current = product.getCategory();
+        while (current != null) {
+            categoryHierarchy.add(current.getName());
+            current = current.getParent();
+        }
+        // Reverse to get Root -> Leaf order (e.g., "Electronics", "Smartphones", "Apple")
+        Collections.reverse(categoryHierarchy);
 
         try {
             for (ProductVariant variant : product.getVariants()) {
@@ -105,7 +116,7 @@ public class ProductService {
                         product.getDescription(),
                         variant.getPrice(),
                         primaryImageUrl,
-                        categoryName
+                        categoryHierarchy
                 );
 
                 OutboxEvent outbox = OutboxEvent.builder()

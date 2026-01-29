@@ -58,7 +58,7 @@ public class SearchService {
                     /* ---------- Filters ---------- */
                     if (category != null && !category.isBlank()) {
                         b.filter(f -> f.term(t -> t
-                                .field("category")
+                                .field("categories")
                                 .value(category)));
                     }
 
@@ -82,7 +82,7 @@ public class SearchService {
 
                 /* ---------- Aggregations ---------- */
                 .withAggregation("categories", Aggregation.of(a -> a
-                        .terms(t -> t.field("category"))
+                        .terms(t -> t.field("categories"))
                 ))
 
                 .withAggregation("brands", Aggregation.of(a -> a
@@ -169,7 +169,7 @@ public class SearchService {
 
     private ProductResponse mapToProductResponse(ProductDocument doc) {
         ProductResponse response = new ProductResponse();
-        log.info(doc.getCategory());
+        log.info(doc.getCategories().toString());
         response.setId(doc.getProductId());
         response.setName(doc.getName());
         response.setDescription(doc.getDescription());
@@ -180,4 +180,3 @@ public class SearchService {
         return response;
     }
 }
-
