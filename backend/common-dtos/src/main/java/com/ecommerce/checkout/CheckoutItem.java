@@ -8,16 +8,22 @@ public class CheckoutItem {
     private int quantity;
     private BigDecimal price;
     private String skuCode;
+    private String imageUrl;
     public CheckoutItem(){};
-
-    public CheckoutItem(Long productId, String productName, int quantity, BigDecimal price, String skuCode) {
+    public CheckoutItem(Long productId, String productName, int quantity, BigDecimal price, String skuCode,String imageUrl) {
         this.productId = productId;
         this.productName = productName;
         this.quantity = quantity;
         this.price = price;
         this.skuCode = skuCode;
+        this.imageUrl = imageUrl;
     }
-
+    public String getImageUrl(){
+        return imageUrl;
+    }
+    public  void setImageUrl(String imageUrl){
+        this.imageUrl = imageUrl;
+    }
     public Long getProductId() {
         return productId;
     }

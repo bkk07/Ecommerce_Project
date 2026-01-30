@@ -22,14 +22,14 @@ spring:
     open-in-view: false
     properties:
       hibernate:
-        format_sql: true
+        format_sql:  true
         dialect: org.hibernate.dialect.MySQLDialect
 
 
   application:
     name: product-service
 server:
-  port: 8083
+  port: 8099
 
 eureka:
   instance:

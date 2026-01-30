@@ -15,4 +15,5 @@ public class CartItem implements Serializable {
     private Integer quantity;
     private BigDecimal price;
     private BigDecimal subTotal;
+    private String imageUrl;
 }

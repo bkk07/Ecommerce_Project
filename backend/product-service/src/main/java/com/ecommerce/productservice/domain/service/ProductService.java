@@ -1,8 +1,10 @@
 package com.ecommerce.productservice.domain.service;
 
-import com.ecommerce.product.ProductCreatedEvent;
+import com.ecommerce.product.*;
 import com.ecommerce.productservice.api.dto.ProductRequest;
 import com.ecommerce.productservice.api.dto.ProductResponse;
+import com.ecommerce.productservice.api.dto.ProductSkuResponse;
+import com.ecommerce.productservice.api.exception.ProductValidationException;
 import com.ecommerce.productservice.api.exception.ResourceNotFoundException;
 import com.ecommerce.productservice.domain.entity.*;
 import com.ecommerce.productservice.domain.repository.CategoryRepository;
@@ -10,6 +12,7 @@ import com.ecommerce.productservice.domain.repository.OutboxRepository;
 import com.ecommerce.productservice.domain.repository.ProductRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -19,9 +22,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
 import java.util.ArrayList;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ProductService {
 
     private final ProductRepository productRepo;
@@ -133,7 +138,6 @@ public class ProductService {
             }
 
             outboxRepo.saveAll(outboxEvents);
-
         } catch (Exception e) {
             throw new RuntimeException("Error serializing product event", e);
         }
@@ -148,6 +152,116 @@ public class ProductService {
 
         return mapToResponse(product);
     }
+
+    // ===================== GET PRODUCT BY SKU =====================
+    @Transactional(readOnly = true)
+    public ProductSkuResponse getProductBySku(String sku) {
+        Product product = productRepo.findByVariantSku(sku)
+                .orElseThrow(() -> new ResourceNotFoundException("Product with SKU " + sku + " not found"));
+
+        ProductVariant selectedVariant = product.getVariants().stream()
+                .filter(v -> v.getSku().equals(sku))
+                .findFirst()
+                .orElseThrow(() -> new ResourceNotFoundException("Variant with SKU " + sku + " not found"));
+
+        List<ProductSkuResponse.ImageDto> images = selectedVariant.getImages().stream()
+                .map(img -> ProductSkuResponse.ImageDto.builder()
+                        .url(img.getUrl())
+                        .isPrimary(img.isPrimary())
+                        .build())
+                .collect(Collectors.toList());
+
+        ProductSkuResponse.SelectedVariant selectedVariantDto = ProductSkuResponse.SelectedVariant.builder()
+                .sku(selectedVariant.getSku())
+                .price(selectedVariant.getPrice())
+                .specs(selectedVariant.getSpecs())
+                .images(images)
+                .build();
+
+        return ProductSkuResponse.builder()
+                .productId(product.getId())
+                .name(product.getName())
+                .description(product.getDescription())
+                .brand(product.getBrand())
+                .categoryId(product.getCategory().getId())
+                .selectedVariant(selectedVariantDto)
+                .build();
+    }
+
+    // ===================== VALIDATE PRODUCTS =====================
+    @Transactional(readOnly = true)
+    public ProductValidationResponse validateProducts(
+            List<ProductValidationItem> items) {
+
+        List<ItemValidationResult> results = new ArrayList<>();
+        log.info("Iam in validate products method in the prduct service ");
+        boolean allValid = true;
+        for (ProductValidationItem item : items) {
+
+            ItemValidationResult result = new ItemValidationResult();
+            result.setSkuCode(item.getSkuCode());
+
+            Product product = productRepo.findByVariantSku(item.getSkuCode())
+                    .orElse(null);
+
+            if (product == null) {
+                result.setValid(false);
+                result.setReason(ProductValidationFailureReason.SKU_NOT_FOUND);
+                allValid = false;
+                results.add(result);
+                continue;
+            }
+
+            if (!product.isActive()) {
+                result.setValid(false);
+                result.setReason(ProductValidationFailureReason.PRODUCT_DISABLED);
+                allValid = false;
+                results.add(result);
+                continue;
+            }
+
+            if (product.isDeleted()) {
+                result.setValid(false);
+                result.setReason(ProductValidationFailureReason.PRODUCT_DELETED);
+                allValid = false;
+                results.add(result);
+                continue;
+            }
+
+            ProductVariant variant = product.getVariants().stream()
+                    .filter(v -> v.getSku().equals(item.getSkuCode()))
+                    .findFirst()
+                    .orElse(null);
+
+            if (variant == null) {
+                result.setValid(false);
+                result.setReason(ProductValidationFailureReason.VARIANT_DELETED);
+                allValid = false;
+                results.add(result);
+                continue;
+            }
+
+            if (variant.getPrice().compareTo(item.getPrice()) != 0) {
+                result.setValid(false);
+                result.setReason(ProductValidationFailureReason.PRICE_MISMATCH);
+                result.setCurrentPrice(variant.getPrice());
+                allValid = false;
+                results.add(result);
+                continue;
+            }
+
+            // ✅ Passed all checks
+            result.setValid(true);
+            results.add(result);
+        }
+
+        ProductValidationResponse response = new ProductValidationResponse();
+        response.setValid(allValid);
+        response.setResults(results);
+
+        return response;
+    }
+
 
     // ===================== RESPONSE MAPPER =====================
     private ProductResponse mapToResponse(Product p) {

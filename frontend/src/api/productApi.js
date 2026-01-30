@@ -20,6 +20,16 @@ export const searchProductsByKeyword = async (keyword) => {
 };
 
 /**
+ * Fetch product details by SKU
+ * @param {string} sku - Product SKU
+ * @returns {Promise<ProductSkuResponse>}
+ */
+export const fetchProductBySku = async (sku) => {
+  const response = await apiClient.get(`/products/sku/${encodeURIComponent(sku)}`);
+  return response.data;
+};
+
+/**
  * Advanced search with filters and sorting
  * @param {Object} params - Search parameters
  * @param {string} params.keyword - Search keyword

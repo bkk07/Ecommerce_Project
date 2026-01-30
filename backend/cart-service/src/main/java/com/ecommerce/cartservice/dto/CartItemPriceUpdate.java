@@ -4,9 +4,7 @@ import lombok.Data;
 import java.math.BigDecimal;
 
 @Data
-public class CartRequest {
+public class CartItemPriceUpdate {
     private String skuCode;
-    private Integer quantity;
-    private String imageUrl;
     private BigDecimal price;
 }

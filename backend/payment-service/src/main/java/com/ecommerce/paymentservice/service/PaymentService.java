@@ -121,9 +121,12 @@ public class PaymentService {
     /**
      * Step 2: Verify Signature (Frontend Callback)
      * This is a quick check, but NOT the final confirmation.
+     * Returns the Payment entity with order details for frontend to use.
      */
     @Transactional
-    public void verifyPayment(VerifyPaymentRequest req) {
+    public Payment verifyPayment(VerifyPaymentRequest req) {
+        log.info("Verifying payment for Razorpay Order ID: {}, Payment ID: {}", 
+                req.getRazorpayOrderId(), req.getRazorpayPaymentId());
         Payment payment = paymentRepository.findByRazorpayOrderId(req.getRazorpayOrderId())
                 .orElseThrow(() -> new RuntimeException("Order not found"));
         try {
@@ -139,16 +142,30 @@ public class PaymentService {
                 payment.setStatus(PaymentStatus.VERIFIED);
                 paymentRepository.save(payment);
 
+                log.info("========================================");
+                log.info("PAYMENT VERIFICATION SUCCESSFUL");
+                log.info("Order ID: {}", payment.getOrderId());
+                log.info("Razorpay Order ID: {}", req.getRazorpayOrderId());
+                log.info("Razorpay Payment ID: {}", req.getRazorpayPaymentId());
+                log.info("Amount: {} {}", payment.getAmount(), payment.getCurrency());
+                log.info("User ID: {}", payment.getUserId());
+                log.info("Status: {}", payment.getStatus());
+                log.info("========================================");
 
                 PaymentSuccessEvent paymentSuccessEvent = new PaymentSuccessEvent();
                 paymentSuccessEvent.setPaymentId(req.getRazorpayPaymentId());
                 paymentSuccessEvent.setOrderId(payment.getOrderId()); // Use stored orderId
                 paymentSuccessEvent.setPaymentMethod("");
                 eventProducer.publishPaymentSuccess(paymentSuccessEvent);
+                
+                log.info("PaymentSuccessEvent published for Order ID: {}", payment.getOrderId());
+                return payment;
             } else {
+                log.error("Payment signature verification FAILED for Razorpay Order ID: {}", req.getRazorpayOrderId());
                 throw new RuntimeException("Signature verification failed");
             }
         } catch (Exception e) {
+            log.error("Payment verification failed for Razorpay Order ID: {}", req.getRazorpayOrderId(), e);
             throw new RuntimeException("Payment verification failed", e);
         }
     }

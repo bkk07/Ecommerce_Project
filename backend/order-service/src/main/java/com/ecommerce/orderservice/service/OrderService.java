@@ -45,7 +45,6 @@ public class OrderService {
     @Transactional
     public OrderCheckoutResponse createOrder(CreateOrderCommand command) {
         log.info("Order Service is Processing Create Order Command for User: {}", command.getUserId());
-        
         String orderId = UUID.randomUUID().toString();
 
         Order order = Order.builder()
@@ -53,20 +52,19 @@ public class OrderService {
                 .userId(command.getUserId())
                 .status(OrderStatus.PENDING) // Initial status PENDING
                 .totalAmount(command.getTotalAmount())
-                .shippingAddress("Address") // Placeholder
+                .shippingAddress(command.getShippingAddress()) // Placeholder
                 .build();
-
         List<OrderItem> items = command.getItems().stream()
                 .map(itemDto -> OrderItem.builder()
                         .skuCode(itemDto.getSkuCode())
                         .productName(itemDto.getProductName())
                         .price(itemDto.getPrice())
                         .quantity(itemDto.getQuantity())
+                        .imageUrl(itemDto.getImageUrl())
                         .order(order)
                         .build())
                 .collect(Collectors.toList());
         order.setItems(items);
-        
         orderRepository.save(order);
         log.info("Order Persisted Successfully with ID: {}", orderId);
 
@@ -81,13 +79,13 @@ public class OrderService {
         event.setUserId(command.getUserId());
         event.setTotalAmount(command.getTotalAmount());
         event.setItems(command.getItems());
-        event.setAddressDTO(command.getAddressDTO());
+        event.setShippingAddress(command.getShippingAddress());
 
         PaymentInitiatedEvent paymentInitiatedEvent = paymentFeign.createPayment(event);
 //        orderEventPublisher.publishOrderCreatedEvent(event);
 //        log.info("Published OrderCreatedEvent for Order ID: {}", orderId);
 
-        return new OrderCheckoutResponse(paymentInitiatedEvent.getOrderId());
+        return new OrderCheckoutResponse(paymentInitiatedEvent.getRazorpayOrderId());
     }
 
     // 2. READ: Get My Orders (Returns DTOs)

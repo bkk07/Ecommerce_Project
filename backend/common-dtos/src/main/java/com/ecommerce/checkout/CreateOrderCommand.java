@@ -8,18 +8,16 @@ import java.util.List;
 public class CreateOrderCommand {
     private String userId;
     private BigDecimal totalAmount;
-    private AddressDTO addressDTO;
+    private String  shippingAddress;
     private List<OrderItemDto> items;
 
-    public CreateOrderCommand() {
-    }
-
-    public CreateOrderCommand(String userId, BigDecimal totalAmount, AddressDTO addressDTO, List<OrderItemDto> items) {
+    public CreateOrderCommand(String userId, BigDecimal totalAmount, String shippingAddress, List<OrderItemDto> items) {
         this.userId = userId;
         this.totalAmount = totalAmount;
-        this.addressDTO = addressDTO;
+        this.shippingAddress = shippingAddress;
         this.items = items;
     }
+    public CreateOrderCommand() {}
 
     public String getUserId() {
         return userId;
@@ -37,12 +35,12 @@ public class CreateOrderCommand {
         this.totalAmount = totalAmount;
     }
 
-    public AddressDTO getAddressDTO() {
-        return addressDTO;
+    public String getShippingAddress() {
+        return shippingAddress;
     }
 
-    public void setAddressDTO(AddressDTO addressDTO) {
-        this.addressDTO = addressDTO;
+    public void setShippingAddress(String shippingAddress) {
+        this.shippingAddress = shippingAddress;
     }
 
     public List<OrderItemDto> getItems() {

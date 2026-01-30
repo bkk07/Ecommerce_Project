@@ -30,5 +30,9 @@ C:\Users\reach\OneDrive\Desktop\Ecommerce\backend\common-dtos\src\main\java\com\
 C:\Users\reach\OneDrive\Desktop\Ecommerce\backend\common-dtos\src\main\java\com\ecommerce\payment\PaymentRefundedEvent.java
 C:\Users\reach\OneDrive\Desktop\Ecommerce\backend\common-dtos\src\main\java\com\ecommerce\payment\PaymentSuccessEvent.java
 C:\Users\reach\OneDrive\Desktop\Ecommerce\backend\common-dtos\src\main\java\com\ecommerce\payment\VerifyPaymentRequest.java
+C:\Users\reach\OneDrive\Desktop\Ecommerce\backend\common-dtos\src\main\java\com\ecommerce\product\ItemValidationResult.java
 C:\Users\reach\OneDrive\Desktop\Ecommerce\backend\common-dtos\src\main\java\com\ecommerce\product\ProductCreatedEvent.java
 C:\Users\reach\OneDrive\Desktop\Ecommerce\backend\common-dtos\src\main\java\com\ecommerce\product\ProductUpdatedEvent.java
+C:\Users\reach\OneDrive\Desktop\Ecommerce\backend\common-dtos\src\main\java\com\ecommerce\product\ProductValidationFailureReason.java
+C:\Users\reach\OneDrive\Desktop\Ecommerce\backend\common-dtos\src\main\java\com\ecommerce\product\ProductValidationItem.java
+C:\Users\reach\OneDrive\Desktop\Ecommerce\backend\common-dtos\src\main\java\com\ecommerce\product\ProductValidationResponse.java

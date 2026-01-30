@@ -6,13 +6,15 @@ public class OrderItemDto {
     private String productName;
     private BigDecimal price;
     private Integer quantity;
+    private String imageUrl;
     public OrderItemDto(){}
 
-    public OrderItemDto(String skuCode, String productName, BigDecimal price, Integer quantity) {
+    public OrderItemDto(String skuCode, String productName, BigDecimal price, Integer quantity, String imageUrl) {
         this.skuCode = skuCode;
         this.productName = productName;
         this.price = price;
         this.quantity = quantity;
+        this.imageUrl = imageUrl;
     }
 
     public String getSkuCode() {
@@ -45,5 +47,13 @@ public class OrderItemDto {
 
     public void setQuantity(Integer quantity) {
         this.quantity = quantity;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

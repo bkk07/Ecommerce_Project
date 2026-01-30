@@ -30,7 +30,7 @@ public class OrderMapper {
             orderItemDto.setQuantity(orderItem.getQuantity());
             orderItemDto.setProductName(orderItem.getProductName());
             orderItemDto.setSkuCode(orderItem.getSkuCode());
-
+            orderItemDto.setImageUrl(orderItem.getImageUrl());
             orderItemDtos.add(orderItemDto);
         }
         return orderItemDtos;
@@ -42,6 +42,7 @@ public class OrderMapper {
                         .productName(item.getProductName())
                         .price(item.getPrice())
                         .quantity(item.getQuantity())
+                        .imageUrl(item.getImageUrl())
                         .build())
                 .collect(Collectors.toList());
     }

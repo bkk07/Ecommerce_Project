@@ -20,6 +20,14 @@ public class GlobalExceptionHandler {
         return problem;
     }
 
+    @ExceptionHandler(ProductValidationException.class)
+    public ProblemDetail handleProductValidation(ProductValidationException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+        problem.setTitle("Product Validation Failed");
+        problem.setProperty("timestamp", Instant.now());
+        return problem;
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ProblemDetail handleValidation(MethodArgumentNotValidException ex) {
         String details = ex.getBindingResult().getFieldErrors().stream()

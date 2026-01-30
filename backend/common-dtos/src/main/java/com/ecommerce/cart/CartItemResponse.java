@@ -7,15 +7,17 @@ public class CartItemResponse {
     private Integer quantity;
     private BigDecimal price;
     private BigDecimal subTotal;
+    private String imageUrl;
 
     public CartItemResponse(){}
 
-    public CartItemResponse(String skuCode, String productName, Integer quantity, BigDecimal price, BigDecimal subTotal) {
+    public CartItemResponse(String skuCode, String productName, Integer quantity, BigDecimal price, BigDecimal subTotal, String imageUrl) {
         this.skuCode = skuCode;
         this.productName = productName;
         this.quantity = quantity;
         this.price = price;
         this.subTotal = subTotal;
+        this.imageUrl = imageUrl;
     }
 
     public String getSkuCode() {
@@ -56,5 +58,13 @@ public class CartItemResponse {
 
     public void setSubTotal(BigDecimal subTotal) {
         this.subTotal = subTotal;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 }

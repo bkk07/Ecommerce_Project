@@ -16,6 +16,13 @@ public class PaymentEventProducer {
     private final KafkaTemplate<String, Object> kafkaTemplate;
 
     public void publishPaymentSuccess(PaymentSuccessEvent event) {
+        log.info("========================================");
+        log.info("PUBLISHING PAYMENT SUCCESS EVENT");
+        log.info("Order ID: {}", event.getOrderId());
+        log.info("Payment ID: {}", event.getPaymentId());
+        log.info("Payment Method: {}", event.getPaymentMethod());
+        log.info("Topic: {}", PAYMENTS_EVENTS_SUCCESS_TOPIC);
+        log.info("========================================");
         kafkaTemplate.send(PAYMENTS_EVENTS_SUCCESS_TOPIC,event.getOrderId(),event);
     }
 
