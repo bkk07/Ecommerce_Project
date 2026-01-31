@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { addItemToCart, selectCartSkuCodes, selectAddingItem } from '../features/cart/cartSlice';
+import { addItemToWishlist, removeItemFromWishlist, selectWishlistSkuCodes, selectWishlistAddingItem } from '../features/wishlist/wishlistSlice';
 import { selectIsAuthenticated } from '../features/auth/authSlice';
 
 const ProductCard = ({ product }) => {
@@ -11,6 +12,8 @@ const ProductCard = ({ product }) => {
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const cartSkuCodes = useSelector(selectCartSkuCodes);
   const isAddingItem = useSelector(selectAddingItem);
+  const wishlistSkuCodes = useSelector(selectWishlistSkuCodes);
+  const isAddingToWishlist = useSelector(selectWishlistAddingItem);
   
   const {
     name,
@@ -29,6 +32,9 @@ const ProductCard = ({ product }) => {
   
   // Check if this product is already in the cart
   const isInCart = productSku && cartSkuCodes.includes(productSku);
+  
+  // Check if this product is already in the wishlist
+  const isInWishlist = productSku && wishlistSkuCodes.includes(productSku);
 
   const handleCardClick = () => {
     if (productSku) {
@@ -88,8 +94,25 @@ const ProductCard = ({ product }) => {
 
   const handleWishlist = (e) => {
     e.stopPropagation(); // Prevent card click
-    // TODO: Implement wishlist functionality
-    console.log('Add to wishlist:', product);
+    
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    
+    if (isInWishlist) {
+      // Remove from wishlist
+      dispatch(removeItemFromWishlist(productSku));
+    } else {
+      // Add to wishlist
+      dispatch(addItemToWishlist({
+        skuCode: productSku,
+        name: name || '',
+        price: price || 0,
+        imageUrl: imageUrl || '',
+        productId: product.id || null
+      }));
+    }
   };
 
   // Generate star rating display
@@ -151,11 +174,24 @@ const ProductCard = ({ product }) => {
         {/* Wishlist Button */}
         <button 
           onClick={handleWishlist}
-          className="absolute top-3 right-3 p-2 bg-white/80 hover:bg-white rounded-full shadow-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          disabled={isAddingToWishlist}
+          className={`absolute top-3 right-3 p-2 rounded-full shadow-sm transition-all duration-300 ${
+            isInWishlist 
+              ? 'bg-red-500 opacity-100' 
+              : 'bg-white/80 hover:bg-white opacity-0 group-hover:opacity-100'
+          } ${isAddingToWishlist ? 'cursor-wait' : ''}`}
         >
-          <svg className="w-5 h-5 text-gray-600 hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
+          {isAddingToWishlist ? (
+            <div className="w-5 h-5 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+          ) : isInWishlist ? (
+            <svg className="w-5 h-5 text-white fill-current" viewBox="0 0 24 24">
+              <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5 text-gray-600 hover:text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+            </svg>
+          )}
         </button>
       </div>
 

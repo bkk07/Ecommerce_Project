@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout, selectIsAuthenticated } from '../features/auth/authSlice';
 import { fetchCart, selectCartItemCount } from '../features/cart/cartSlice';
+import { fetchWishlist, selectWishlistTotalItems } from '../features/wishlist/wishlistSlice';
 
 const categories = [
   'Electronics',
@@ -21,11 +22,13 @@ const Navbar = () => {
   const dispatch = useDispatch();
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const cartItemCount = useSelector(selectCartItemCount);
+  const wishlistItemCount = useSelector(selectWishlistTotalItems);
 
-  // Fetch cart when authenticated
+  // Fetch cart and wishlist when authenticated
   useEffect(() => {
     if (isAuthenticated) {
       dispatch(fetchCart());
+      dispatch(fetchWishlist());
     }
   }, [dispatch, isAuthenticated]);
 
@@ -126,11 +129,16 @@ const Navbar = () => {
           {/* Right Side Icons */}
           <div className="hidden md:flex items-center space-x-4">
             {/* Wishlist */}
-            <button className="p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all">
+            <Link to="/wishlist" className="relative p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
-            </button>
+              {wishlistItemCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center font-medium">
+                  {wishlistItemCount > 99 ? '99+' : wishlistItemCount}
+                </span>
+              )}
+            </Link>
 
             {/* Cart with Badge */}
             <Link to="/cart" className="relative p-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-all">
@@ -288,12 +296,21 @@ const Navbar = () => {
 
           {/* Mobile Actions */}
           <div className="flex items-center space-x-4 pt-4 border-t border-gray-100">
-            <button className="flex items-center space-x-2 text-gray-700 hover:text-indigo-600">
+            <Link
+              to="/wishlist"
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="flex items-center space-x-2 text-gray-700 hover:text-indigo-600"
+            >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
               <span>Wishlist</span>
-            </button>
+              {wishlistItemCount > 0 && (
+                <span className="ml-1 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                  {wishlistItemCount}
+                </span>
+              )}
+            </Link>
             <Link
               to="/cart"
               onClick={() => setIsMobileMenuOpen(false)}
