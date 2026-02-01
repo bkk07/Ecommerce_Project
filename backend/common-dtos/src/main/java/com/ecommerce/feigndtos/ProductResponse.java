@@ -63,4 +63,24 @@ public class ProductResponse {
     public void setSkuCode(String skuCode) {
         this.skuCode = skuCode;
     }
+
+    // Rating fields
+    private Double averageRating;
+    private Long totalRatings;
+
+    public Double getAverageRating() {
+        return averageRating;
+    }
+
+    public void setAverageRating(Double averageRating) {
+        this.averageRating = averageRating;
+    }
+
+    public Long getTotalRatings() {
+        return totalRatings;
+    }
+
+    public void setTotalRatings(Long totalRatings) {
+        this.totalRatings = totalRatings;
+    }
 }

@@ -12,6 +12,7 @@ import Cart from '../pages/Cart';
 import OrderSuccess from '../pages/OrderSuccess';
 import Orders from '../pages/Orders';
 import Wishlist from '../pages/Wishlist';
+import AdminDashboard from '../pages/AdminDashboard';
 
 const AppRoutes = () => {
   return (
@@ -28,6 +29,7 @@ const AppRoutes = () => {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/admin" element={<AdminDashboard />} />
     </Routes>
   );
 };

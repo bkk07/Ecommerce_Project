@@ -36,7 +36,8 @@ export const fetchProductBySku = async (sku) => {
  * @param {string} params.category - Category filter
  * @param {number} params.minPrice - Minimum price
  * @param {number} params.maxPrice - Maximum price
- * @param {string} params.sortBy - Sort field (price, name, createdAt)
+ * @param {number} params.minRating - Minimum rating filter (1-5)
+ * @param {string} params.sortBy - Sort field (price, name, createdAt, averageRating)
  * @param {string} params.sortOrder - Sort order (asc, desc)
  * @param {number} params.page - Page number
  * @param {number} params.size - Page size
@@ -46,11 +47,15 @@ export const searchProductsWithFilters = async (params) => {
   
   if (params.keyword) queryParams.append('keyword', params.keyword);
   if (params.category) queryParams.append('category', params.category);
+  if (params.brand) queryParams.append('brand', params.brand);
   if (params.minPrice !== undefined && params.minPrice !== null && params.minPrice !== '') {
     queryParams.append('minPrice', params.minPrice);
   }
   if (params.maxPrice !== undefined && params.maxPrice !== null && params.maxPrice !== '') {
     queryParams.append('maxPrice', params.maxPrice);
+  }
+  if (params.minRating !== undefined && params.minRating !== null && params.minRating !== '') {
+    queryParams.append('minRating', params.minRating);
   }
   if (params.sortBy) {
     queryParams.append('sort', `${params.sortBy},${params.sortOrder || 'asc'}`);

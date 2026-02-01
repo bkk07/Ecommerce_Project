@@ -30,6 +30,34 @@ spring:
             - name: AuthFilter
               args:
                 requiredRole: USER
+
+        # ---------------------------------------------------
+        # 3. Order Service Admin Routes (ADMIN only)
+        # NOTE: This MUST come BEFORE the general /admin/** route
+        # ---------------------------------------------------
+        - id: order-service-admin
+          uri: lb://ORDER-SERVICE
+          predicates:
+            - Path=/admin/orders/**
+            - Method=GET, OPTIONS
+          filters:
+            - name: AuthFilter
+              args:
+                requiredRole: ADMIN
+
+        # ---------------------------------------------------
+        # 4. User Service Admin Analytics Route (ADMIN only)
+        # ---------------------------------------------------
+        - id: user-service-admin
+          uri: lb://USER-SERVICE
+          predicates:
+            - Path=/admin/users/**
+            - Method=GET, OPTIONS
+          filters:
+            - name: AuthFilter
+              args:
+                requiredRole: ADMIN
+
         # --- Route A: Public Read Access (GET) ---
         # "Anyone can browse products"
         - id: product-service-read
@@ -105,6 +133,12 @@ spring:
             - Path=/api/payments/**
             - Method=POST, PUT, DELETE, PATCH, GET, OPTIONS
 
+        - id: payment-webhooks
+          uri: lb://PAYMENT-SERVICE
+          predicates:
+            - Path=/api/webhooks/**
+            - Method=POST, OPTIONS
+
         - id: order-service
           uri: lb://ORDER-SERVICE
           predicates:
@@ -125,6 +159,27 @@ spring:
           uri: lb://WISHLIST-SERVICE
           predicates:
             - Path=/api/v1/wishlist/**
+            - Method=POST, PUT, DELETE, PATCH, GET, OPTIONS
+          filters:
+            - name: AuthFilter
+              args:
+                requiredRole: USER
+
+        # ---------------------------------------------------
+        # Rating Service Routes
+        # ---------------------------------------------------
+        # Public endpoints - view product ratings
+        - id: rating-service-read
+          uri: lb://RATING-SERVICE
+          predicates:
+            - Path=/api/v1/ratings/product/**
+            - Method=GET, OPTIONS
+
+        # Protected endpoints - create/update/delete ratings
+        - id: rating-service-write
+          uri: lb://RATING-SERVICE
+          predicates:
+            - Path=/api/v1/ratings/**
             - Method=POST, PUT, DELETE, PATCH, GET, OPTIONS
           filters:
             - name: AuthFilter

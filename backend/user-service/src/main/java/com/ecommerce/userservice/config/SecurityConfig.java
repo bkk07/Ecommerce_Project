@@ -19,6 +19,8 @@ public class SecurityConfig {
                         // Allow User Profile endpoints (Gateway has already checked the token)
                         // We trust the X-Auth-User-Id header injected by the Gateway
                         .requestMatchers("/users/**").permitAll()
+                        // Admin endpoints - Gateway validates ADMIN role, we permit here
+                        .requestMatchers("/admin/**").permitAll()
                         .anyRequest().authenticated()
                 );
         return http.build();

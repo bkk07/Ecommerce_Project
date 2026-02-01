@@ -112,16 +112,39 @@ public class OrderService {
 
     @Transactional
     public void updatedToPlaced(PaymentSuccessEvent event){
-        log.info("Updating order status to PLACED for Order ID: {}", event.getOrderId());
+        log.info("========================================");
+        log.info("PROCESSING PAYMENT SUCCESS EVENT");
+        log.info("Order ID: {}", event.getOrderId());
+        log.info("Payment ID: {}", event.getPaymentId());
+        log.info("========================================");
+        
         Order order = orderRepository.findByOrderId(event.getOrderId())
                 .orElseThrow(() -> {
                     log.error("Order not found with ID: {}", event.getOrderId());
                     return new RuntimeException("Order not found");
                 });
+        
+        log.info("Found order - Current Status: {}", order.getStatus());
+        
+        // Idempotency check - skip if already placed or in a later state
+        if (order.getStatus() == OrderStatus.PLACED || 
+            order.getStatus() == OrderStatus.CONFIRMED ||
+            order.getStatus() == OrderStatus.SHIPPED ||
+            order.getStatus() == OrderStatus.DELIVERED) {
+            log.info("Order {} already in status {}, skipping update to PLACED", 
+                    event.getOrderId(), order.getStatus());
+            return;
+        }
+        
         order.setPaymentId(event.getPaymentId());
         order.setStatus(OrderStatus.PLACED);
         orderRepository.save(order);
-        log.info("Order Updated Successfully to PLACED for Order ID: {}", event.getOrderId());
+        
+        log.info("========================================");
+        log.info("ORDER UPDATED TO PLACED SUCCESSFULLY");
+        log.info("Order ID: {}", event.getOrderId());
+        log.info("Payment ID: {}", event.getPaymentId());
+        log.info("========================================");
 
         // Create Outbox Event for ORDER_PLACED
         saveOutboxEvent(order, OrderNotificationType.ORDER_PLACED, null);
@@ -166,11 +189,38 @@ public class OrderService {
             orderEventPublisher.handleOrderCancel(orderCancelEvent);
         } else {
             order.setStatus(status);
+            
+            // If status is DELIVERED, publish event for rating eligibility
+            if (status == OrderStatus.DELIVERED) {
+                publishOrderDeliveredEvent(order);
+            }
         }
 
         orderRepository.save(order);
         log.info("Successfully Updated the state of the order {} to {}", order.getOrderId(), order.getStatus());
         return "Order Updated Successfully";
+    }
+
+    /**
+     * Publish ORDER_DELIVERED event for rating eligibility
+     */
+    private void publishOrderDeliveredEvent(Order order) {
+        List<OrderDeliveredEvent.DeliveredItem> deliveredItems = order.getItems().stream()
+                .map(item -> new OrderDeliveredEvent.DeliveredItem(
+                        item.getSkuCode(),
+                        item.getProductName(),
+                        item.getImageUrl()))
+                .collect(Collectors.toList());
+
+        OrderDeliveredEvent event = OrderDeliveredEvent.builder()
+                .orderId(order.getOrderId())
+                .userId(order.getUserId())
+                .items(deliveredItems)
+                .build();
+
+        orderEventPublisher.publishOrderDeliveredEvent(event);
+        log.info("Published ORDER_DELIVERED event for order: {} with {} items", 
+                order.getOrderId(), deliveredItems.size());
     }
 
     @Transactional

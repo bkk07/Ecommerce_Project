@@ -9,6 +9,13 @@ spring:
       # Reliability Settings
       retries: 3
       acks: all
+    consumer:
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.ecommerce.*"
+        spring.json.type.mapping: "ratingEvent:com.ecommerce.rating.RatingUpdatedEvent"
+      auto-offset-reset: earliest
   datasource:
     url: jdbc:mysql://localhost:3306/ecommerce?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
     username: root

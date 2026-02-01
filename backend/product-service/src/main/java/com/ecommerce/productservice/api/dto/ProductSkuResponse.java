@@ -31,6 +31,8 @@ public class ProductSkuResponse {
         private BigDecimal price;
         private Map<String, Object> specs;
         private List<ImageDto> images;
+        private Double averageRating;
+        private Long ratingCount;
     }
 
     @Data

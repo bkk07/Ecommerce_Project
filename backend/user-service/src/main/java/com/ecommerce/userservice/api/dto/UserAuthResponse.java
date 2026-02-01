@@ -12,4 +12,6 @@ public class UserAuthResponse {
     private String token;
     private Long userId;
     private String role;
+    private Boolean requiresVerification;
+    private String message;
 }

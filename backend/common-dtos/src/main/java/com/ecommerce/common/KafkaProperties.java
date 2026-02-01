@@ -33,4 +33,11 @@ public class KafkaProperties {
     public static final String USER_EVENTS_TOPIC = "user-events";
     
     public static final String ORDER_NOTIFICATIONS_TOPIC = "order-notifications-topic";
+    
+    // Order Delivered Events (for rating eligibility)
+    public static final String ORDER_DELIVERED_TOPIC = "order-delivered-topic";
+    
+    // Rating Events
+    public static final String RATING_EVENTS_TOPIC = "rating-events";
+    public static final String RATING_EVENTS_GROUP = "rating-event-group";
 }

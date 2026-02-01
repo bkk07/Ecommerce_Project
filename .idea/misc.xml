@@ -29,6 +29,7 @@
         <option value="$PROJECT_DIR$/backend/api-gateway/pom.xml" />
         <option value="$PROJECT_DIR$/backend/cart-service/pom.xml" />
         <option value="$PROJECT_DIR$/backend/product-service/pom.xml" />
+        <option value="$PROJECT_DIR$/backend/rating-service/pom.xml" />
       </list>
     </option>
   </component>

@@ -26,6 +26,7 @@
         <outputRelativeToContentRoot value="true" />
         <processorPath useClasspath="false">
           <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.42/lombok-1.18.42.jar" />
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.42/lombok-1.18.42.jar" />
         </processorPath>
         <module name="cart-service" />
         <module name="payment-service" />
@@ -33,9 +34,18 @@
         <module name="search-service" />
         <module name="product-service" />
         <module name="user-service" />
-        <module name="order-service" />
         <module name="wishlist-service" />
         <module name="notification-service" />
+      </profile>
+      <profile name="Annotation profile for rating-service" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath useClasspath="false">
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.42/lombok-1.18.42.jar" />
+        </processorPath>
+        <module name="rating-service" />
+        <module name="order-service" />
       </profile>
     </annotationProcessing>
   </component>
@@ -50,6 +60,7 @@
       <module name="order-service" options="-parameters" />
       <module name="payment-service" options="-parameters" />
       <module name="product-service" options="-parameters" />
+      <module name="rating-service" options="-parameters" />
       <module name="search-service" options="-parameters" />
       <module name="user-service" options="-parameters" />
       <module name="wishlist-service" options="-parameters" />

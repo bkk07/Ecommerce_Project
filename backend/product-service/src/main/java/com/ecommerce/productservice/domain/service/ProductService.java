@@ -176,6 +176,8 @@ public class ProductService {
                 .price(selectedVariant.getPrice())
                 .specs(selectedVariant.getSpecs())
                 .images(images)
+                .averageRating(selectedVariant.getAverageRating())
+                .ratingCount(selectedVariant.getRatingCount())
                 .build();
 
         return ProductSkuResponse.builder()

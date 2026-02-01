@@ -16,8 +16,6 @@ const SORT_OPTIONS = [
   { value: '', label: 'Featured' },
   { value: 'price-asc', label: 'Price: Low to High' },
   { value: 'price-desc', label: 'Price: High to Low' },
-  { value: 'name-asc', label: 'Name: A to Z' },
-  { value: 'name-desc', label: 'Name: Z to A' },
   { value: 'createdAt-desc', label: 'Newest First' },
 ];
 
@@ -28,6 +26,13 @@ const PRICE_RANGES = [
   { label: '$250 - $500', min: 250, max: 500 },
   { label: '$500 - $1000', min: 500, max: 1000 },
   { label: 'Over $1000', min: 1000, max: '' },
+];
+
+const RATING_FILTERS = [
+  { label: '4★ & up', value: '4' },
+  { label: '3★ & up', value: '3' },
+  { label: '2★ & up', value: '2' },
+  { label: '1★ & up', value: '1' },
 ];
 
 const Products = () => {
@@ -47,6 +52,7 @@ const Products = () => {
     maxPrice: searchParams.get('maxPrice') || '',
     sortBy: searchParams.get('sortBy') || '',
     brand: searchParams.get('brand') || '',
+    minRating: searchParams.get('minRating') || '',
   });
 
   const [showMobileFilters, setShowMobileFilters] = useState(false);
@@ -61,6 +67,8 @@ const Products = () => {
       category: category || 'Smartphones',
       minPrice: filters.minPrice,
       maxPrice: filters.maxPrice,
+      minRating: filters.minRating,
+      brand: filters.brand,
       sortBy: sortField,
       sortOrder: sortDirection,
       page: currentPage,
@@ -75,6 +83,7 @@ const Products = () => {
     if (filters.maxPrice) params.set('maxPrice', filters.maxPrice);
     if (filters.sortBy) params.set('sortBy', filters.sortBy);
     if (filters.brand) params.set('brand', filters.brand);
+    if (filters.minRating) params.set('minRating', filters.minRating);
     if (currentPage > 0) params.set('page', currentPage.toString());
     setSearchParams(params, { replace: true });
   }, [filters, currentPage, setSearchParams]);
@@ -109,19 +118,25 @@ const Products = () => {
       maxPrice: '',
       sortBy: '',
       brand: '',
+      minRating: '',
     });
     setCurrentPage(0);
   };
 
   // Check if any filter is active
-  const hasActiveFilters = filters.minPrice || filters.maxPrice || filters.sortBy || filters.brand;
+  const hasActiveFilters = filters.minPrice || filters.maxPrice || filters.sortBy || filters.brand || filters.minRating;
 
   // Get active filter count
   const activeFilterCount = [
     filters.minPrice || filters.maxPrice,
     filters.sortBy,
     filters.brand,
+    filters.minRating,
   ].filter(Boolean).length;
+
+  const errorMessage = typeof error === 'string'
+    ? error
+    : (error?.message || error?.error || 'Failed to load products');
 
   // Get brands from facets
   const brands = Object.keys(brandFacets || {});
@@ -301,6 +316,35 @@ const Products = () => {
                 </div>
               )}
 
+              {/* Rating Filter */}
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Rating</h3>
+                <div className="space-y-2">
+                  {RATING_FILTERS.map((rating) => (
+                    <label key={rating.value} className="flex items-center gap-2 cursor-pointer group">
+                      <input
+                        type="radio"
+                        name="rating"
+                        checked={filters.minRating === rating.value}
+                        onChange={() => handleFilterChange('minRating', rating.value)}
+                        className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                      />
+                      <span className="text-sm text-gray-700 group-hover:text-indigo-600 transition-colors">
+                        {rating.label}
+                      </span>
+                    </label>
+                  ))}
+                  {filters.minRating && (
+                    <button
+                      onClick={() => handleFilterChange('minRating', '')}
+                      className="text-xs text-gray-500 hover:text-indigo-600 mt-1"
+                    >
+                      Clear rating
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {/* Active Filters Summary */}
               {hasActiveFilters && (
                 <div className="pt-4 border-t border-gray-100">
@@ -330,6 +374,16 @@ const Products = () => {
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs">
                         {filters.brand}
                         <button onClick={() => handleFilterChange('brand', '')} className="hover:text-indigo-900">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    )}
+                    {filters.minRating && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs">
+                        {RATING_FILTERS.find(r => r.value === filters.minRating)?.label || `${filters.minRating}★ & up`}
+                        <button onClick={() => handleFilterChange('minRating', '')} className="hover:text-indigo-900">
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
@@ -445,6 +499,33 @@ const Products = () => {
                     </div>
                   )}
 
+                  {/* Rating Filter */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Rating</h3>
+                    <div className="space-y-2">
+                      {RATING_FILTERS.map((rating) => (
+                        <label key={rating.value} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="rating-mobile"
+                            checked={filters.minRating === rating.value}
+                            onChange={() => handleFilterChange('minRating', rating.value)}
+                            className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm text-gray-700">{rating.label}</span>
+                        </label>
+                      ))}
+                      {filters.minRating && (
+                        <button
+                          onClick={() => handleFilterChange('minRating', '')}
+                          className="text-xs text-gray-500 hover:text-indigo-600 mt-1"
+                        >
+                          Clear rating
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Action Buttons */}
                   <div className="flex gap-3 pt-4 border-t border-gray-100">
                     <button
@@ -511,7 +592,7 @@ const Products = () => {
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to load products</h3>
-                <p className="text-gray-600 mb-4">{error}</p>
+                <p className="text-gray-600 mb-4">{errorMessage}</p>
                 <button
                   onClick={() => fetchWithFilters()}
                   className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"

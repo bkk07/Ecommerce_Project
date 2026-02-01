@@ -22,6 +22,7 @@ public class SecurityConfig {
                                 .pathMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/categories/**", "/api/v1/images/**").permitAll()
                                 .pathMatchers("/api/v1/search/**").permitAll()
                                 .pathMatchers("/api/payments/**").permitAll()
+                                .pathMatchers("/api/webhooks/**").permitAll()
                                 .pathMatchers("/auth/**").permitAll()
                                 .anyExchange().permitAll()
                 );

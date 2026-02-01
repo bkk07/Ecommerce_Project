@@ -13,6 +13,7 @@
     <file url="file://$PROJECT_DIR$/backend/order-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/payment-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/product-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/backend/rating-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/search-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/user-service/src/main/java" charset="UTF-8" />
     <file url="file://$PROJECT_DIR$/backend/wishlist-service/src/main/java" charset="UTF-8" />

@@ -18,7 +18,15 @@ const SORT_OPTIONS = [
   { value: 'price-desc', label: 'Price: High to Low' },
   { value: 'name-asc', label: 'Name: A to Z' },
   { value: 'name-desc', label: 'Name: Z to A' },
-  { value: 'createdAt-desc', label: 'Newest First' },
+  { value: 'averageRating-desc', label: 'Highest Rated' },
+];
+
+const RATING_FILTERS = [
+  { value: '', label: 'All Ratings' },
+  { value: '4', label: '4★ & Above' },
+  { value: '3', label: '3★ & Above' },
+  { value: '2', label: '2★ & Above' },
+  { value: '1', label: '1★ & Above' },
 ];
 
 const CATEGORIES = [
@@ -57,6 +65,7 @@ const SearchResults = () => {
     category: searchParams.get('category') || '',
     minPrice: searchParams.get('minPrice') || '',
     maxPrice: searchParams.get('maxPrice') || '',
+    minRating: searchParams.get('minRating') || '',
     sortBy: searchParams.get('sortBy') || '',
     sortOrder: searchParams.get('sortOrder') || 'asc',
   });
@@ -74,6 +83,7 @@ const SearchResults = () => {
       category: filters.category,
       minPrice: filters.minPrice,
       maxPrice: filters.maxPrice,
+      minRating: filters.minRating,
       sortBy: sortField,
       sortOrder: sortDirection,
       page: currentPage,
@@ -88,6 +98,7 @@ const SearchResults = () => {
     if (filters.category) params.set('category', filters.category);
     if (filters.minPrice) params.set('minPrice', filters.minPrice);
     if (filters.maxPrice) params.set('maxPrice', filters.maxPrice);
+    if (filters.minRating) params.set('minRating', filters.minRating);
     if (filters.sortBy) params.set('sortBy', filters.sortBy);
     setSearchParams(params, { replace: true });
   }, [keyword, filters, setSearchParams]);
@@ -122,6 +133,7 @@ const SearchResults = () => {
       category: '',
       minPrice: '',
       maxPrice: '',
+      minRating: '',
       sortBy: '',
       sortOrder: 'asc',
     });
@@ -130,12 +142,13 @@ const SearchResults = () => {
   };
 
   // Check if any filter is active
-  const hasActiveFilters = filters.category || filters.minPrice || filters.maxPrice || filters.sortBy;
+  const hasActiveFilters = filters.category || filters.minPrice || filters.maxPrice || filters.minRating || filters.sortBy;
 
   // Get active filter count
   const activeFilterCount = [
     filters.category,
     filters.minPrice || filters.maxPrice,
+    filters.minRating,
     filters.sortBy,
   ].filter(Boolean).length;
 
@@ -304,6 +317,35 @@ const SearchResults = () => {
                 </div>
               </div>
 
+              {/* Rating Filter */}
+              <div className="mb-6">
+                <h3 className="text-sm font-semibold text-gray-900 mb-3">Customer Rating</h3>
+                <div className="space-y-2">
+                  {RATING_FILTERS.map((option) => (
+                    <label key={option.value} className="flex items-center gap-2 cursor-pointer group">
+                      <input
+                        type="radio"
+                        name="ratingFilter"
+                        checked={filters.minRating === option.value}
+                        onChange={() => handleFilterChange('minRating', option.value)}
+                        className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                      />
+                      <span className="text-sm text-gray-700 group-hover:text-indigo-600 transition-colors flex items-center gap-1">
+                        {option.value ? (
+                          <>
+                            <span className="text-yellow-400">{'★'.repeat(parseInt(option.value))}</span>
+                            <span className="text-gray-300">{'★'.repeat(5 - parseInt(option.value))}</span>
+                            <span className="ml-1">& Up</span>
+                          </>
+                        ) : (
+                          option.label
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               {/* Active Filters Summary */}
               {hasActiveFilters && (
                 <div className="pt-4 border-t border-gray-100">
@@ -333,6 +375,16 @@ const SearchResults = () => {
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs">
                         {SORT_OPTIONS.find(o => o.value === filters.sortBy)?.label}
                         <button onClick={() => handleFilterChange('sortBy', '')} className="hover:text-indigo-900">
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </span>
+                    )}
+                    {filters.minRating && (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full text-xs">
+                        {filters.minRating}★ & Up
+                        <button onClick={() => handleFilterChange('minRating', '')} className="hover:text-indigo-900">
                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                           </svg>
@@ -435,6 +487,35 @@ const SearchResults = () => {
                           className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
                         />
                       </div>
+                    </div>
+                  </div>
+
+                  {/* Rating Filter (Mobile) */}
+                  <div className="mb-6">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Customer Rating</h3>
+                    <div className="space-y-2">
+                      {RATING_FILTERS.map((option) => (
+                        <label key={option.value} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="radio"
+                            name="ratingFilter-mobile"
+                            checked={filters.minRating === option.value}
+                            onChange={() => handleFilterChange('minRating', option.value)}
+                            className="w-4 h-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                          />
+                          <span className="text-sm text-gray-700 flex items-center gap-1">
+                            {option.value ? (
+                              <>
+                                <span className="text-yellow-400">{'★'.repeat(parseInt(option.value))}</span>
+                                <span className="text-gray-300">{'★'.repeat(5 - parseInt(option.value))}</span>
+                                <span className="ml-1">& Up</span>
+                              </>
+                            ) : (
+                              option.label
+                            )}
+                          </span>
+                        </label>
+                      ))}
                     </div>
                   </div>
 

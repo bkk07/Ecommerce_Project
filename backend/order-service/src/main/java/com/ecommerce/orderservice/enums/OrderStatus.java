@@ -1,6 +1,7 @@
 package com.ecommerce.orderservice.enums;
 public enum OrderStatus {
     PENDING,
+    CONFIRMED,
     PAYMENT_READY, // Razorpay order created
     PLACED,     // Payment confirmed, saved in DB
     PACKED,     // Warehouse is working on it

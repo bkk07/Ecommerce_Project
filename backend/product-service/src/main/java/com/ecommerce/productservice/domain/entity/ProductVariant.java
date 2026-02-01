@@ -26,6 +26,13 @@ public class ProductVariant {
     @Column(nullable = false)
     private BigDecimal price;
 
+    // Rating fields
+    @Column(name = "average_rating")
+    private Double averageRating = 0.0;
+
+    @Column(name = "rating_count")
+    private Long ratingCount = 0L;
+
     // 🚀 Portable JSON Support (MySQL/Postgres)
     @JdbcTypeCode(SqlTypes.JSON)
     private Map<String, Object> specs;

@@ -23,6 +23,8 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       retries: 3
       acks: all
+      properties:
+        spring.json.type.mapping: "orderDeliveredEvent:com.ecommerce.order.OrderDeliveredEvent"
 
   jpa:
     hibernate:

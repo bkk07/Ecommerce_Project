@@ -25,8 +25,11 @@ public class ProductDocument {
     @Field(type = FieldType.Long, name = "productId")
     private Long productId;
 
-    @Field(type = FieldType.Text, name = "name")
+    @Field(type = FieldType.Text, name = "name", fielddata = true)
     private String name;
+
+    @Field(type = FieldType.Keyword, name = "nameKeyword")
+    private String nameKeyword;
 
     @Field(type = FieldType.Text, name = "description")
     private String description;
@@ -48,4 +51,11 @@ public class ProductDocument {
 
     @Field(type = FieldType.Keyword, name = "imageUrl")
     private String imageUrl;
+
+    // Rating fields
+    @Field(type = FieldType.Double, name = "averageRating")
+    private Double averageRating;
+
+    @Field(type = FieldType.Long, name = "totalRatings")
+    private Long totalRatings;
 }

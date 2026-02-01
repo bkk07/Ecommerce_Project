@@ -2,6 +2,7 @@ package com.ecommerce.searchservice.consumer;
 
 import com.ecommerce.inventory.InventoryUpdatedEvent;
 import com.ecommerce.product.ProductCreatedEvent;
+import com.ecommerce.rating.RatingUpdatedEvent;
 import com.ecommerce.searchservice.model.ProductDocument;
 import com.ecommerce.searchservice.repository.ProductRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,12 +28,15 @@ public class SearchConsumer {
                 .productId(event.getProductId())
                 .skuCode(event.getSku())
                 .name(event.getName())
+            .nameKeyword(event.getName())
                 .description(event.getDescription())
                 .price(event.getPrice())
                 .isInStock(false) // By Default it is false
                 .categories(event.getCategories())
                 .brand("Generic")
                 .imageUrl(event.getImageUrl())
+                .averageRating(0.0)
+                .totalRatings(0L)
                 .build();
 
         productRepository.save(product);
@@ -52,6 +56,28 @@ public class SearchConsumer {
                     log.info("Updated stock status for SKU: {} (Doc ID: {})", event.getSkuCode(), product.getId());
                 },
                 () -> log.error("Product not found in Elasticsearch for SKU: {}", event.getSkuCode())
+        );
+    }
+
+    // 3. RATING UPDATED -> Update rating fields in Elasticsearch
+    @KafkaListener(topics = RATING_EVENTS_TOPIC, groupId = "search-event-group")
+    public void handleRatingUpdate(RatingUpdatedEvent event) {
+        log.info("========================================");
+        log.info("RECEIVED RATING UPDATE EVENT");
+        log.info("SKU: {}", event.getSku());
+        log.info("Average Rating: {}", event.getAverageRating());
+        log.info("Total Ratings: {}", event.getTotalRatings());
+        log.info("========================================");
+        
+        productRepository.findById(event.getSku()).ifPresentOrElse(
+                product -> {
+                    product.setAverageRating(event.getAverageRating());
+                    product.setTotalRatings(event.getTotalRatings());
+                    productRepository.save(product);
+                    log.info("Updated rating for SKU: {} - Avg: {}, Total: {}", 
+                            event.getSku(), event.getAverageRating(), event.getTotalRatings());
+                },
+                () -> log.error("Product not found in Elasticsearch for SKU: {}", event.getSku())
         );
     }
 }

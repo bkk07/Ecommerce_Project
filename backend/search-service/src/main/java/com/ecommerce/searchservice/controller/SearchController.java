@@ -17,7 +17,7 @@ public class SearchController {
 
     private final SearchService searchService;
 
-    // GET http://localhost:8083/api/v1/search?keyword=iphone&category=Electronics&minPrice=100&maxPrice=1000&page=0&size=10
+    // GET http://localhost:8083/api/v1/search?keyword=iphone&category=Electronics&minPrice=100&maxPrice=1000&minRating=4&page=0&size=10&sort=averageRating,desc
     @GetMapping
     public ResponseEntity<SearchResponse> searchProducts(
             @RequestParam(required = false) String keyword,
@@ -25,9 +25,10 @@ public class SearchController {
             @RequestParam(required = false) String brand,
             @RequestParam(required = false) BigDecimal minPrice,
             @RequestParam(required = false) BigDecimal maxPrice,
+            @RequestParam(required = false) Double minRating,
             Pageable pageable) {
         
-        return ResponseEntity.ok(searchService.search(keyword, category, brand, minPrice, maxPrice, pageable));
+        return ResponseEntity.ok(searchService.search(keyword, category, brand, minPrice, maxPrice, minRating, pageable));
     }
 
     // GET http://localhost:8083/api/v1/search/sku/skuCode

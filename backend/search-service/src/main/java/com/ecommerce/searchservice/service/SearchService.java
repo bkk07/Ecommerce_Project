@@ -7,7 +7,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregation;
 import org.springframework.data.elasticsearch.client.elc.ElasticsearchAggregations;
 import org.springframework.data.elasticsearch.client.elc.NativeQuery;
@@ -41,8 +43,11 @@ public class SearchService {
             String brand,
             BigDecimal minPrice,
             BigDecimal maxPrice,
+            Double minRating,
             Pageable pageable
     ) {
+
+        Pageable normalizedPageable = normalizeSort(pageable);
 
         NativeQuery query = NativeQuery.builder()
                 .withQuery(q -> q.bool(b -> {
@@ -77,6 +82,15 @@ public class SearchService {
                         })));
                     }
 
+                    /* ---------- Rating Filter ---------- */
+                    if (minRating != null && minRating > 0) {
+                        b.filter(f -> f.range(r -> r.number(n -> {
+                            n.field("averageRating");
+                            n.gte(minRating);
+                            return n;
+                        })));
+                    }
+
                     return b;
                 }))
 
@@ -89,7 +103,7 @@ public class SearchService {
                         .terms(t -> t.field("brand"))
                 ))
 
-                .withPageable(pageable)
+                .withPageable(normalizedPageable)
                 .build();
 
         SearchHits<ProductDocument> searchHits =
@@ -103,7 +117,7 @@ public class SearchService {
                 .collect(Collectors.toList());
 
         Page<ProductResponse> page =
-                new PageImpl<>(products, pageable, searchHits.getTotalHits());
+                new PageImpl<>(products, normalizedPageable, searchHits.getTotalHits());
 
         /* ---------- Facets ---------- */
         Map<String, Long> categoryFacets = extractTermsFacet(searchHits, "categories");
@@ -169,14 +183,37 @@ public class SearchService {
 
     private ProductResponse mapToProductResponse(ProductDocument doc) {
         ProductResponse response = new ProductResponse();
-        log.info(doc.getCategories().toString());
+        if (doc.getCategories() != null) {
+            log.info(doc.getCategories().toString());
+        }
         response.setId(doc.getProductId());
         response.setName(doc.getName());
         response.setDescription(doc.getDescription());
         response.setPrice(doc.getPrice());
         response.setSkuCode(doc.getSkuCode());
         response.setImageUrl(doc.getImageUrl());
+        response.setAverageRating(doc.getAverageRating());
+        response.setTotalRatings(doc.getTotalRatings());
 
         return response;
+    }
+
+    private Pageable normalizeSort(Pageable pageable) {
+        if (pageable == null || pageable.getSort().isUnsorted()) {
+            return pageable;
+        }
+
+        Sort mappedSort = Sort.by(pageable.getSort().stream()
+                .map(order -> {
+                    String property = order.getProperty();
+                    String mappedProperty = switch (property) {
+                        case "createdAt" -> "productId"; // best available proxy for newest
+                        default -> property;
+                    };
+                    return new Sort.Order(order.getDirection(), mappedProperty);
+                })
+                .toList());
+
+        return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), mappedSort);
     }
 }

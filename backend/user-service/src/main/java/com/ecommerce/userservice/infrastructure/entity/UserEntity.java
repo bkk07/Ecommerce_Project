@@ -8,7 +8,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = {
+    @Index(name = "idx_user_created_at", columnList = "created_at"),
+    @Index(name = "idx_user_role", columnList = "role"),
+    @Index(name = "idx_user_email_verified", columnList = "is_email_verified"),
+    @Index(name = "idx_user_phone_verified", columnList = "is_phone_verified")
+})
 @Data
 public class UserEntity {
     @Id
@@ -25,6 +30,9 @@ public class UserEntity {
 
     private boolean isEmailVerified;
     private boolean isPhoneVerified;
+    
+    @Column(name = "created_at", updatable = false)
+    private LocalDateTime createdAt;
 
     @Column(name = "email_otp")
     private String emailVerificationOtp;
@@ -50,4 +58,11 @@ public class UserEntity {
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<AddressEntity> addresses = new ArrayList<>();
+    
+    @PrePersist
+    protected void onCreate() {
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
+    }
 }

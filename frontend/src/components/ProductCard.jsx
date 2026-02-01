@@ -23,12 +23,17 @@ const ProductCard = ({ product }) => {
     category,
     sku,
     skuCode, // Alternative field name from search results
-    rating = 4.5,
-    reviewCount = 128,
+    averageRating, // Actual rating from backend
+    totalRatings, // Total number of ratings
   } = product;
 
   // Use skuCode if sku is not available
   const productSku = sku || skuCode;
+  
+  // Determine if product has been rated
+  const hasRating = averageRating !== null && averageRating !== undefined && averageRating > 0 && totalRatings > 0;
+  const displayRating = hasRating ? averageRating : 0;
+  const displayReviewCount = hasRating ? totalRatings : 0;
   
   // Check if this product is already in the cart
   const isInCart = productSku && cartSkuCodes.includes(productSku);
@@ -199,8 +204,14 @@ const ProductCard = ({ product }) => {
       <div className="p-4">
         {/* Rating */}
         <div className="flex items-center space-x-1 mb-2">
-          <div className="flex">{renderStars(rating)}</div>
-          <span className="text-sm text-gray-500 ml-1">({reviewCount})</span>
+          {hasRating ? (
+            <>
+              <div className="flex">{renderStars(displayRating)}</div>
+              <span className="text-sm text-gray-500 ml-1">({displayReviewCount})</span>
+            </>
+          ) : (
+            <span className="text-sm text-gray-400 italic">Not Rated</span>
+          )}
         </div>
 
         {/* Product Name */}

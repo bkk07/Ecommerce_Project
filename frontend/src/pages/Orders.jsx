@@ -3,6 +3,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { selectIsAuthenticated, selectUser } from '../features/auth/authSlice';
 import { getUserOrders } from '../api/orderApi';
+import { 
+  createRating, 
+  updateRating, 
+  deleteRating, 
+  getUserRatingsForOrder 
+} from '../api/ratingApi';
 
 // Helper to parse shipping address JSON
 const parseShippingAddress = (addressString) => {
@@ -34,10 +40,195 @@ const StatusBadge = ({ status }) => {
   );
 };
 
+// Star Rating Component
+const StarRating = ({ rating, onRatingChange, readonly = false, size = 'md' }) => {
+  const [hoverRating, setHoverRating] = useState(0);
+  const sizes = {
+    sm: 'w-4 h-4',
+    md: 'w-6 h-6',
+    lg: 'w-8 h-8'
+  };
+
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((star) => (
+        <button
+          key={star}
+          type="button"
+          disabled={readonly}
+          onClick={() => !readonly && onRatingChange && onRatingChange(star)}
+          onMouseEnter={() => !readonly && setHoverRating(star)}
+          onMouseLeave={() => !readonly && setHoverRating(0)}
+          className={`${readonly ? 'cursor-default' : 'cursor-pointer'} transition-colors`}
+        >
+          <svg
+            className={`${sizes[size]} ${
+              (hoverRating || rating) >= star
+                ? 'text-yellow-400 fill-yellow-400'
+                : 'text-gray-300'
+            }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+            />
+          </svg>
+        </button>
+      ))}
+    </div>
+  );
+};
+
+// Rating Modal Component
+const RatingModal = ({ item, orderId, existingRating, onClose, onSubmit }) => {
+  const [rating, setRating] = useState(existingRating?.rating || 0);
+  const [message, setMessage] = useState(existingRating?.message || '');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async () => {
+    if (rating === 0) {
+      setError('Please select a rating');
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      if (existingRating) {
+        await updateRating(existingRating.id, { rating, message });
+      } else {
+        await createRating({
+          sku: item.skuCode,
+          orderId: orderId,
+          rating,
+          message
+        });
+      }
+      onSubmit();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to submit rating');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!existingRating) return;
+    
+    setLoading(true);
+    try {
+      await deleteRating(existingRating.id);
+      onSubmit();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to delete rating');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl max-w-md w-full p-6">
+        <div className="flex justify-between items-start mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">
+            {existingRating ? 'Update Your Review' : 'Rate This Product'}
+          </h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Product Info */}
+        <div className="flex items-center gap-3 mb-6 p-3 bg-gray-50 rounded-lg">
+          <div className="w-16 h-16 rounded-lg bg-white border overflow-hidden flex-shrink-0">
+            {item.imageUrl ? (
+              <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover" />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            )}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-gray-900 truncate">{item.productName}</p>
+            <p className="text-sm text-gray-500">SKU: {item.skuCode}</p>
+          </div>
+        </div>
+
+        {/* Star Rating */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Your Rating</label>
+          <StarRating rating={rating} onRatingChange={setRating} size="lg" />
+        </div>
+
+        {/* Review Message */}
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Your Review (Optional)</label>
+          <textarea
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            rows={3}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            placeholder="Share your experience with this product..."
+          />
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 text-red-600 text-sm rounded-lg">
+            {error}
+          </div>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          {existingRating && (
+            <button
+              onClick={handleDelete}
+              disabled={loading}
+              className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            >
+              Delete
+            </button>
+          )}
+          <div className="flex-1" />
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading || rating === 0}
+            className="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {loading ? 'Submitting...' : existingRating ? 'Update' : 'Submit'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Single order card component
 const OrderCard = ({ order }) => {
   const [expanded, setExpanded] = useState(false);
+  const [ratings, setRatings] = useState({});
+  const [ratingModalItem, setRatingModalItem] = useState(null);
+  const [loadingRatings, setLoadingRatings] = useState(false);
   const shippingAddress = parseShippingAddress(order.shippingAddress);
+  const isDelivered = order.status === 'DELIVERED';
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -49,6 +240,34 @@ const OrderCard = ({ order }) => {
       hour: '2-digit',
       minute: '2-digit',
     });
+  };
+
+  // Fetch existing ratings when order is delivered and expanded
+  useEffect(() => {
+    if (isDelivered && expanded && Object.keys(ratings).length === 0) {
+      fetchRatings();
+    }
+  }, [isDelivered, expanded]);
+
+  const fetchRatings = async () => {
+    setLoadingRatings(true);
+    try {
+      const orderRatings = await getUserRatingsForOrder(order.orderNumber);
+      const ratingsMap = {};
+      orderRatings.forEach(r => {
+        ratingsMap[r.sku] = r;
+      });
+      setRatings(ratingsMap);
+    } catch (err) {
+      console.error('Failed to fetch ratings:', err);
+    } finally {
+      setLoadingRatings(false);
+    }
+  };
+
+  const handleRatingSubmit = () => {
+    setRatingModalItem(null);
+    fetchRatings(); // Refresh ratings
   };
 
   return (
@@ -130,35 +349,80 @@ const OrderCard = ({ order }) => {
           <div className="space-y-4 mt-4">
             {/* Order Items */}
             <div className="space-y-3">
-              {order.items?.map((item, index) => (
-                <div
-                  key={item.skuCode || index}
-                  className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg"
-                >
-                  <div className="w-16 h-16 rounded-lg bg-white border border-gray-200 overflow-hidden flex-shrink-0">
-                    {item.imageUrl ? (
-                      <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+              {order.items?.map((item, index) => {
+                const existingRating = ratings[item.skuCode];
+                return (
+                  <div
+                    key={item.skuCode || index}
+                    className="p-3 bg-gray-50 rounded-lg"
+                  >
+                    <div className="flex items-center space-x-4">
+                      <div className="w-16 h-16 rounded-lg bg-white border border-gray-200 overflow-hidden flex-shrink-0">
+                        {item.imageUrl ? (
+                          <img src={item.imageUrl} alt={item.productName} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <svg className="w-8 h-8 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-medium text-gray-900 truncate">{item.productName}</h4>
+                        <p className="text-xs text-gray-500">SKU: {item.skuCode}</p>
+                        <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-gray-900">
+                          ${(Number(item.price) * item.quantity).toFixed(2)}
+                        </p>
+                        <p className="text-xs text-gray-500">${Number(item.price).toFixed(2)} each</p>
+                      </div>
+                    </div>
+
+                    {/* Rating Section - Only for DELIVERED orders */}
+                    {isDelivered && (
+                      <div className="mt-3 pt-3 border-t border-gray-200">
+                        {loadingRatings ? (
+                          <div className="text-xs text-gray-500">Loading rating...</div>
+                        ) : existingRating ? (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-600">Your Rating:</span>
+                              <StarRating rating={existingRating.rating} size="sm" readonly />
+                              {existingRating.message && (
+                                <span className="text-xs text-gray-500 truncate max-w-[150px]">
+                                  "{existingRating.message}"
+                                </span>
+                              )}
+                            </div>
+                            <button
+                              onClick={() => setRatingModalItem({ ...item, orderId: order.orderNumber })}
+                              className="text-xs text-indigo-600 hover:text-indigo-700 font-medium flex items-center gap-1"
+                            >
+                              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                              Edit
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setRatingModalItem({ ...item, orderId: order.orderNumber })}
+                            className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 font-medium"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+                            </svg>
+                            Rate this product
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-gray-900 truncate">{item.productName}</h4>
-                    <p className="text-xs text-gray-500">SKU: {item.skuCode}</p>
-                    <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-gray-900">
-                      ${(Number(item.price) * item.quantity).toFixed(2)}
-                    </p>
-                    <p className="text-xs text-gray-500">${Number(item.price).toFixed(2)} each</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Shipping Address */}
@@ -190,6 +454,17 @@ const OrderCard = ({ order }) => {
           </div>
         )}
       </div>
+
+      {/* Rating Modal */}
+      {ratingModalItem && (
+        <RatingModal
+          item={ratingModalItem}
+          orderId={ratingModalItem.orderId}
+          existingRating={ratings[ratingModalItem.skuCode]}
+          onClose={() => setRatingModalItem(null)}
+          onSubmit={handleRatingSubmit}
+        />
+      )}
     </div>
   );
 };

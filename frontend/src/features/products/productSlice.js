@@ -99,6 +99,7 @@ const initialState = {
     category: '',
     minPrice: '',
     maxPrice: '',
+    minRating: '',
     sortBy: '',
     sortOrder: 'asc',
   },
@@ -130,6 +131,7 @@ const productSlice = createSlice({
         category: '',
         minPrice: '',
         maxPrice: '',
+        minRating: '',
         sortBy: '',
         sortOrder: 'asc',
       };

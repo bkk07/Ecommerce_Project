@@ -122,6 +122,8 @@ public class PaymentService {
      * Step 2: Verify Signature (Frontend Callback)
      * This is a quick check, but NOT the final confirmation.
      * Returns the Payment entity with order details for frontend to use.
+     * NOTE: Does NOT publish PaymentSuccessEvent - that's done by webhook/reconciliation job
+     * to ensure order confirmation happens even if browser closes.
      */
     @Transactional
     public Payment verifyPayment(VerifyPaymentRequest req) {
@@ -150,15 +152,13 @@ public class PaymentService {
                 log.info("Amount: {} {}", payment.getAmount(), payment.getCurrency());
                 log.info("User ID: {}", payment.getUserId());
                 log.info("Status: {}", payment.getStatus());
+                log.info("NOTE: PaymentSuccessEvent will be published by webhook/reconciliation job");
                 log.info("========================================");
 
-                PaymentSuccessEvent paymentSuccessEvent = new PaymentSuccessEvent();
-                paymentSuccessEvent.setPaymentId(req.getRazorpayPaymentId());
-                paymentSuccessEvent.setOrderId(payment.getOrderId()); // Use stored orderId
-                paymentSuccessEvent.setPaymentMethod("");
-                eventProducer.publishPaymentSuccess(paymentSuccessEvent);
+                // NOTE: We do NOT publish PaymentSuccessEvent here anymore.
+                // The webhook or reconciliation job will publish it after confirming with Razorpay.
+                // This ensures order confirmation happens even if browser closes before this callback.
                 
-                log.info("PaymentSuccessEvent published for Order ID: {}", payment.getOrderId());
                 return payment;
             } else {
                 log.error("Payment signature verification FAILED for Razorpay Order ID: {}", req.getRazorpayOrderId());
@@ -178,24 +178,42 @@ public class PaymentService {
     @Transactional
     public void processWebhook(String payload, String signature) {
         try {
-            // 1. Verify Webhook Signature
-            if (!Utils.verifyWebhookSignature(payload, signature, webhookSecret)) {
-                log.error("Invalid Webhook Signature");
-                throw new SecurityException("Invalid Signature");
+            log.info("========================================");
+            log.info("PROCESSING RAZORPAY WEBHOOK");
+            log.info("Signature: {}", signature);
+            log.info("========================================");
+            
+            // 1. Verify Webhook Signature (skip if secret not configured - dev mode)
+            if (webhookSecret != null && !webhookSecret.isBlank()) {
+                if (!Utils.verifyWebhookSignature(payload, signature, webhookSecret)) {
+                    log.error("Invalid Webhook Signature");
+                    throw new SecurityException("Invalid Signature");
+                }
+                log.info("Webhook signature verified successfully");
+            } else {
+                log.warn("Webhook secret not configured - skipping signature verification (DEV MODE)");
             }
 
             JsonNode root = objectMapper.readTree(payload);
             String event = root.path("event").asText();
+            log.info("Webhook event type: {}", event);
 
             // We only care about "payment.captured"
             if ("payment.captured".equals(event)) {
                 JsonNode entity = root.path("payload").path("payment").path("entity");
                 String razorpayOrderId = entity.path("order_id").asText();
                 String paymentId = entity.path("id").asText();
+                
+                log.info("Processing payment.captured - Razorpay Order ID: {}, Payment ID: {}", razorpayOrderId, paymentId);
 
                 // 2. Idempotency Check
                 Payment payment = paymentRepository.findByRazorpayOrderId(razorpayOrderId)
-                        .orElseThrow(() -> new RuntimeException("Order not found for webhook"));
+                        .orElseThrow(() -> {
+                            log.error("Payment record not found for Razorpay Order ID: {}", razorpayOrderId);
+                            return new RuntimeException("Order not found for webhook");
+                        });
+                
+                log.info("Found payment record - Order ID: {}, Current Status: {}", payment.getOrderId(), payment.getStatus());
 
                 if (payment.getStatus() == PaymentStatus.PAID) {
                     log.info("Payment already processed for order: {}", razorpayOrderId);
@@ -207,18 +225,29 @@ public class PaymentService {
 
                 // 4. Mark PAID
                 payment.setStatus(PaymentStatus.PAID);
+                if (payment.getRazorpayPaymentId() == null || payment.getRazorpayPaymentId().isBlank()) {
+                    payment.setRazorpayPaymentId(paymentId);
+                }
                 paymentRepository.save(payment);
+                log.info("Payment status updated to PAID for Order ID: {}", payment.getOrderId());
 
                 // 5. Notify Ecosystem (Saga)
-//                PaymentSuccessEvent successEvent = new PaymentSuccessEvent(
-//                        payment.getOrderId(),
-//                        paymentId,
-//                        payment.getAmount().toString(),
-//                        payment.getMethodType().toString()
-//                );
-//                eventProducer.publishPaymentSuccess(successEvent);
+                PaymentSuccessEvent successEvent = new PaymentSuccessEvent(
+                        payment.getOrderId(),
+                        paymentId,
+                        payment.getMethodType() != null ? payment.getMethodType().name() : ""
+                );
+                eventProducer.publishPaymentSuccess(successEvent);
 
-//                log.info("Payment successfully captured and event published for order: {}", payment.getOrderId());
+                log.info("========================================");
+                log.info("WEBHOOK PROCESSING COMPLETE");
+                log.info("Order ID: {}", payment.getOrderId());
+                log.info("Razorpay Order ID: {}", razorpayOrderId);
+                log.info("Payment ID: {}", paymentId);
+                log.info("PaymentSuccessEvent published successfully");
+                log.info("========================================");
+            } else {
+                log.info("Ignoring webhook event type: {}", event);
             }
 
         } catch (Exception e) {

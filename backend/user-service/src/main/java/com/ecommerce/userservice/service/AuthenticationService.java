@@ -120,7 +120,13 @@ public class AuthenticationService {
 
         if (!user.isEmailVerified()) {
             sendVerificationEmail(user);
-            throw new CustomException("Please verify your email. Verification email sent.", HttpStatus.FORBIDDEN);
+            // Return response with userId but no token - indicates verification needed
+            return UserAuthResponse.builder()
+                    .userId(user.getId())
+                    .role(user.getRole().name())
+                    .requiresVerification(true)
+                    .message("Please verify your email. Verification code sent.")
+                    .build();
         }
         
         Role role = user.getRole() != null ? user.getRole() : Role.USER;

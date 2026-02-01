@@ -34,14 +34,19 @@ export const login = createAsyncThunk(
   async (credentials, { rejectWithValue }) => {
     try {
       const response = await loginUser(credentials);
+      // Check if verification is required (no token returned)
+      if (response.requiresVerification) {
+        return { 
+          requiresVerification: true, 
+          userId: response.userId, 
+          email: credentials.email,
+          message: response.message 
+        };
+      }
       storeAuth(response);
       return response;
     } catch (error) {
       const message = error.response?.data?.message || error.response?.data?.error || 'Login failed. Please try again.';
-      // Check if email verification is required
-      if (error.response?.status === 403 && message.toLowerCase().includes('verify')) {
-        return rejectWithValue({ message, requiresVerification: true, email: credentials.email });
-      }
       return rejectWithValue({ message });
     }
   }
@@ -140,26 +145,29 @@ const authSlice = createSlice({
       })
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.isAuthenticated = true;
-        state.token = action.payload.token;
-        state.user = {
-          userId: action.payload.userId,
-          role: action.payload.role,
-        };
-        state.error = null;
-        state.pendingVerification = null;
+        // Check if verification is required
+        if (action.payload.requiresVerification) {
+          state.isAuthenticated = false;
+          state.pendingVerification = {
+            userId: action.payload.userId,
+            email: action.payload.email,
+            fromLogin: true
+          };
+          state.error = null;
+        } else {
+          state.isAuthenticated = true;
+          state.token = action.payload.token;
+          state.user = {
+            userId: action.payload.userId,
+            role: action.payload.role,
+          };
+          state.error = null;
+          state.pendingVerification = null;
+        }
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload?.message || 'Login failed';
-        if (action.payload?.requiresVerification) {
-          // User needs to verify email - store email for re-registration flow
-          state.pendingVerification = { 
-            requiresVerification: true,
-            email: action.payload.email,
-            fromLogin: true 
-          };
-        }
       })
       // Register cases
       .addCase(register.pending, (state) => {
