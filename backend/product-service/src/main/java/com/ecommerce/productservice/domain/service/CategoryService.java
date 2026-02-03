@@ -33,10 +33,19 @@ public class CategoryService {
             Category parent = categoryRepo.findById(request.getParentId())
                     .orElseThrow(() -> new ResourceNotFoundException("Parent category not found"));
             category.setParent(parent);
-            // Optimization: Build path string (e.g., "1/5/10")
-            category.setPath(parent.getPath() == null ? parent.getId().toString() : parent.getPath() + "/" + parent.getId());
+            // Build materialized path: includes all ancestor IDs including parent
+            // Format: "/1/5/10" where 10 is the parent ID
+            // This allows easy subtree queries with LIKE '/1/5/%'
+            String parentPath = parent.getPath();
+            if (parentPath == null || parentPath.isEmpty()) {
+                // Parent is root, so path is just the parent's ID
+                category.setPath("/" + parent.getId());
+            } else {
+                // Append parent's ID to parent's path
+                category.setPath(parentPath + "/" + parent.getId());
+            }
         } else {
-            category.setPath(""); // Root has empty path prefix
+            category.setPath(""); // Root has empty path
         }
 
         Category saved = categoryRepo.save(category);
