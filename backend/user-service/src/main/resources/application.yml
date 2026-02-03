@@ -44,4 +44,93 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+
+# OpenAPI/Swagger Configuration
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    operationsSorter: method
+    tagsSorter: alpha
+    tryItOutEnabled: true
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+    instances:
+      authService:
+        baseConfig: default
+      userService:
+        baseConfig: default
+      kafkaProducer:
+        baseConfig: default
+        failureRateThreshold: 60
+        waitDurationInOpenState: 60s
+  retry:
+    configs:
+      default:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+    instances:
+      authService:
+        baseConfig: default
+      kafkaProducer:
+        baseConfig: default
+        maxAttempts: 5
+        waitDuration: 1s
+  ratelimiter:
+    configs:
+      default:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 500ms
+    instances:
+      authEndpoints:
+        baseConfig: default
+        limitForPeriod: 10
+      registrationEndpoints:
+        limitForPeriod: 5
+        limitRefreshPeriod: 60s
+
+# JWT Configuration - Load from environment variables or secrets
+jwt:
+  # Base64-encoded private key - MUST be provided via environment variable in production
+  # Use: export JWT_PRIVATE_KEY=<base64-encoded-private-key>
+  # To generate: openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
+  # Then: base64 -w0 private_key.pem
+  private-key-base64: ${JWT_PRIVATE_KEY}
+  token-validity-hours: ${JWT_TOKEN_VALIDITY_HOURS:24}
+  issuer: ${JWT_ISSUER:user-service}
+
+# OTP Rate Limiting Configuration
+otp:
+  max-requests-per-hour: ${OTP_MAX_REQUESTS_PER_HOUR:5}
+  max-failed-attempts: ${OTP_MAX_FAILED_ATTEMPTS:5}
+  lockout-duration-minutes: ${OTP_LOCKOUT_DURATION_MINUTES:30}
+  request-cooldown-seconds: ${OTP_REQUEST_COOLDOWN_SECONDS:60}

@@ -12,6 +12,7 @@ import com.ecommerce.userservice.domain.port.NotificationProducerPort;
 import com.ecommerce.userservice.domain.port.UserRepositoryPort;
 import com.ecommerce.userservice.exception.CustomException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,31 +26,41 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthenticationService {
 
     private final UserRepositoryPort userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final NotificationProducerPort notificationProducer;
+    private final OtpRateLimiterService otpRateLimiterService;
+    
+    private static final String OTP_TYPE_EMAIL = "EMAIL";
+    private static final String OTP_TYPE_PHONE = "PHONE";
+    private static final String OTP_TYPE_FORGOT_PASSWORD = "FORGOT_PASSWORD";
 
     // --- Register ---
     @Transactional
     public UserAuthResponse register(RegisterRequest request) {
-        Optional<User> existingUserOpt = userRepository.findByEmail(request.getEmail());
+        // Normalize email to lowercase for case-insensitive matching
+        String normalizedEmail = request.getEmail().toLowerCase().trim();
+        
+        Optional<User> existingUserOpt = userRepository.findByEmail(normalizedEmail);
         if (existingUserOpt.isPresent()) {
             User existingUser = existingUserOpt.get();
             if (existingUser.isEmailVerified()) {
                 throw new CustomException("Email already taken", HttpStatus.CONFLICT);
             }
             // Resend verification if user exists but not verified
+            otpRateLimiterService.checkRequestAllowed(normalizedEmail, OTP_TYPE_EMAIL);
             sendVerificationEmail(existingUser);
             throw new CustomException("Email already registered but not verified. Please verify your email.", HttpStatus.FORBIDDEN);
         }
 
-        // 1. Create User
+        // 1. Create User with normalized email
         User newUser = User.builder()
                 .name(request.getName())
-                .email(request.getEmail())
+                .email(normalizedEmail)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone())
                 .role(Role.USER)
@@ -72,13 +83,16 @@ public class AuthenticationService {
 
     @Transactional
     public UserAuthResponse registerAdmin(RegisterRequest request) {
-        if (userRepository.existsByEmail(request.getEmail())) {
+        // Normalize email to lowercase
+        String normalizedEmail = request.getEmail().toLowerCase().trim();
+        
+        if (userRepository.existsByEmail(normalizedEmail)) {
             throw new CustomException("Email already taken", HttpStatus.CONFLICT);
         }
-        // 1. Create User
+        // 1. Create User with normalized email
         User newUser = User.builder()
                 .name(request.getName())
-                .email(request.getEmail())
+                .email(normalizedEmail)
                 .password(passwordEncoder.encode(request.getPassword()))
                 .phone(request.getPhone())
                 .role(Role.ADMIN)
@@ -89,6 +103,8 @@ public class AuthenticationService {
         User savedUser = userRepository.save(newUser);
         // 3. Generate Token
         String token = jwtService.generateToken(savedUser.getId().toString(), savedUser.getRole().name());
+        
+        log.info("Admin user created: {}", normalizedEmail);
         
         // 4. Publish User Created Event for Notification Service to store user details
         return getUserAuthResponse(savedUser, token);
@@ -112,13 +128,17 @@ public class AuthenticationService {
 
     @Transactional
     public UserAuthResponse login(LoginRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
+        // Normalize email for case-insensitive lookup
+        String normalizedEmail = request.getEmail().toLowerCase().trim();
+        
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new CustomException("Invalid Credentials", HttpStatus.UNAUTHORIZED));
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new CustomException("Invalid Credentials", HttpStatus.UNAUTHORIZED);
         }
 
         if (!user.isEmailVerified()) {
+            otpRateLimiterService.checkRequestAllowed(normalizedEmail, OTP_TYPE_EMAIL);
             sendVerificationEmail(user);
             // Return response with userId but no token - indicates verification needed
             return UserAuthResponse.builder()
@@ -140,7 +160,13 @@ public class AuthenticationService {
 
     @Transactional
     public void initiateForgotPassword(String email) {
-        User user = userRepository.findByEmail(email)
+        // Normalize email
+        String normalizedEmail = email.toLowerCase().trim();
+        
+        // Check rate limit before processing
+        otpRateLimiterService.checkRequestAllowed(normalizedEmail, OTP_TYPE_FORGOT_PASSWORD);
+        
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
 
         if (!user.isEmailVerified()) {
@@ -162,22 +188,40 @@ public class AuthenticationService {
         forgotPwd.setPayload(params);
         forgotPwd.setOccurredAt(LocalDateTime.now());
         notificationProducer.sendNotification(forgotPwd);
+        
+        log.debug("Forgot password OTP sent to: {}", normalizedEmail);
     }
 
     // --- STEP 2: Verify OTP ---
     @Transactional
     public void verifyForgotPasswordOtp(String email, String otp) {
-        User user = userRepository.findByEmail(email)
+        String normalizedEmail = email.toLowerCase().trim();
+        
+        // Check if locked out
+        if (otpRateLimiterService.isLockedOut(normalizedEmail, OTP_TYPE_FORGOT_PASSWORD)) {
+            throw new CustomException("Too many failed attempts. Please try again later.", HttpStatus.TOO_MANY_REQUESTS);
+        }
+        
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
 
-        user.validateForgotPasswordOtp(otp);
-        userRepository.save(user);
+        try {
+            user.validateForgotPasswordOtp(otp);
+            userRepository.save(user);
+            otpRateLimiterService.recordSuccess(normalizedEmail, OTP_TYPE_FORGOT_PASSWORD);
+        } catch (CustomException e) {
+            otpRateLimiterService.recordFailure(normalizedEmail, OTP_TYPE_FORGOT_PASSWORD);
+            int remaining = otpRateLimiterService.getRemainingAttempts(normalizedEmail, OTP_TYPE_FORGOT_PASSWORD);
+            throw new CustomException(e.getMessage() + " Remaining attempts: " + remaining, e.getStatus());
+        }
     }
 
     // --- STEP 3: Change Password ---
     @Transactional
     public void forgotPassword(String email, String newPassword) {
-        User user = userRepository.findByEmail(email)
+        String normalizedEmail = email.toLowerCase().trim();
+        
+        User user = userRepository.findByEmail(normalizedEmail)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
 
         if (!user.isPasswordResetVerified()) {
@@ -186,6 +230,8 @@ public class AuthenticationService {
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setPasswordResetVerified(false);
         userRepository.save(user);
+        
+        log.info("Password reset successful for: {}", normalizedEmail);
     }
 
     // --- Initiate Email Verification ---
@@ -198,6 +244,9 @@ public class AuthenticationService {
             throw new CustomException("Email already verified", HttpStatus.BAD_REQUEST);
         }
 
+        // Check rate limit
+        otpRateLimiterService.checkRequestAllowed(user.getEmail(), OTP_TYPE_EMAIL);
+        
         sendVerificationEmail(user);
     }
 
@@ -206,9 +255,25 @@ public class AuthenticationService {
     public UserAuthResponse verifyEmail(Long userId, String otp) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
-        user.validateEmailOtp(otp);
-        userRepository.save(user);
-        // 4. Send Welcome Notification
+        
+        String userEmail = user.getEmail();
+        
+        // Check if locked out
+        if (otpRateLimiterService.isLockedOut(userEmail, OTP_TYPE_EMAIL)) {
+            throw new CustomException("Too many failed attempts. Please try again later.", HttpStatus.TOO_MANY_REQUESTS);
+        }
+        
+        try {
+            user.validateEmailOtp(otp);
+            userRepository.save(user);
+            otpRateLimiterService.recordSuccess(userEmail, OTP_TYPE_EMAIL);
+        } catch (CustomException e) {
+            otpRateLimiterService.recordFailure(userEmail, OTP_TYPE_EMAIL);
+            int remaining = otpRateLimiterService.getRemainingAttempts(userEmail, OTP_TYPE_EMAIL);
+            throw new CustomException(e.getMessage() + " Remaining attempts: " + remaining, e.getStatus());
+        }
+        
+        // Send Welcome Notification
         Map<String, String> params = new HashMap<>();
         params.put("name", user.getName());
 
@@ -221,7 +286,6 @@ public class AuthenticationService {
         welcome.setPayload(params);
         welcome.setOccurredAt(LocalDateTime.now());
         notificationProducer.sendNotification(welcome);
-
 
         return UserAuthResponse.builder()
                 .token(token)
@@ -240,6 +304,9 @@ public class AuthenticationService {
             throw new CustomException("Phone already verified", HttpStatus.BAD_REQUEST);
         }
 
+        // Check rate limit for phone
+        otpRateLimiterService.checkRequestAllowed(user.getPhone(), OTP_TYPE_PHONE);
+
         user.generatePhoneOtp();
         userRepository.save(user);
 
@@ -256,14 +323,29 @@ public class AuthenticationService {
         phoneOtp.setOccurredAt(LocalDateTime.now());
         notificationProducer.sendNotification(phoneOtp);
     }
+    
     // --- Complete Phone Verification ---
     @Transactional
     public void verifyPhone(Long userId, String otp) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
 
-        user.validatePhoneOtp(otp);
-        userRepository.save(user);
+        String userPhone = user.getPhone();
+        
+        // Check if locked out
+        if (otpRateLimiterService.isLockedOut(userPhone, OTP_TYPE_PHONE)) {
+            throw new CustomException("Too many failed attempts. Please try again later.", HttpStatus.TOO_MANY_REQUESTS);
+        }
+        
+        try {
+            user.validatePhoneOtp(otp);
+            userRepository.save(user);
+            otpRateLimiterService.recordSuccess(userPhone, OTP_TYPE_PHONE);
+        } catch (CustomException e) {
+            otpRateLimiterService.recordFailure(userPhone, OTP_TYPE_PHONE);
+            int remaining = otpRateLimiterService.getRemainingAttempts(userPhone, OTP_TYPE_PHONE);
+            throw new CustomException(e.getMessage() + " Remaining attempts: " + remaining, e.getStatus());
+        }
     }
 
     private void sendVerificationEmail(User user) {
