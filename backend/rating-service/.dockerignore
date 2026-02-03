@@ -1,0 +1,34 @@
+# Ignore build output
+target/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+
+# Maven wrapper (optional - usually committed)
+!.mvn/wrapper/maven-wrapper.jar
+
+# Logs
+logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files with secrets
+.env
+*.env.local
+application-local.yml
+
+# Docker volumes
+mysql_data/
+redis_data/
+kafka_data/
+
+# Test output
+test-output/

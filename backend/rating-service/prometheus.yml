@@ -1,0 +1,16 @@
+# Prometheus configuration for Rating Service
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'rating-service'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['rating-service:8096']
+    scrape_interval: 10s
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
