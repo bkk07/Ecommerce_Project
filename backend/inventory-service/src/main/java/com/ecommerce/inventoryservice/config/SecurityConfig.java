@@ -1,30 +1,40 @@
 package com.ecommerce.inventoryservice.config;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
 @Configuration
-@EnableMethodSecurity(prePostEnabled = true) // 🚀 Enables @PreAuthorize
+@EnableMethodSecurity(prePostEnabled = true)
+@RequiredArgsConstructor
 public class SecurityConfig {
+
+    private final GatewayHeaderFilter gatewayHeaderFilter;
+
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        System.out.println("Configuring SecurityFilterChain... I am in SecurityConfig");
         http
-                .csrf(csrf -> csrf.disable())
-                .cors(cors -> cors.disable())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // No sessions
+                .csrf(AbstractHttpConfigurer::disable)
+                .cors(AbstractHttpConfigurer::disable)
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-                // 🚀 Add our Custom Filter BEFORE the standard Spring Security filter
-                .addFilterBefore(new GatewayHeaderFilter(), UsernamePasswordAuthenticationFilter.class)
+                // Add our Custom Filter BEFORE the standard Spring Security filter
+                .addFilterBefore(gatewayHeaderFilter, UsernamePasswordAuthenticationFilter.class)
 
                 .authorizeHttpRequests(auth -> auth
-                        // Allow public access to GET endpoints (as discussed)
-                        .requestMatchers(HttpMethod.GET, "/api/v1/inventory/**", "/api/v1/inventory/**").permitAll()
+                        // Allow public access to GET endpoints
+                        .requestMatchers(HttpMethod.GET, "/api/v1/inventory/**").permitAll()
+                        // OpenAPI/Swagger endpoints
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // Actuator health endpoints
+                        .requestMatchers("/actuator/health/**", "/actuator/info").permitAll()
                         // All other requests must have valid headers (checked by filter)
                         .anyRequest().authenticated()
                 );

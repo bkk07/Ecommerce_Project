@@ -14,5 +14,6 @@ public class ErrorResponse {
     private String errorCode;      // e.g., "INVENTORY_NOT_FOUND"
     private String errorMessage;
     private LocalDateTime timestamp;
-    private String details;        // Stack trace or specific validation error
+    private String details;        // Specific validation error details
+    private String errorId;        // Unique ID for tracking in logs
 }

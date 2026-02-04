@@ -25,15 +25,15 @@
         <option value="$PROJECT_DIR$/backend/order-service/pom.xml" />
         <option value="$PROJECT_DIR$/backend/payment-service/pom.xml" />
         <option value="$PROJECT_DIR$/backend/search-service/pom.xml" />
-        <option value="$PROJECT_DIR$/backend/wishlist-service/pom.xml" />
         <option value="$PROJECT_DIR$/backend/api-gateway/pom.xml" />
         <option value="$PROJECT_DIR$/backend/cart-service/pom.xml" />
         <option value="$PROJECT_DIR$/backend/product-service/pom.xml" />
         <option value="$PROJECT_DIR$/backend/rating-service/pom.xml" />
+        <option value="$PROJECT_DIR$/backend/wishlist-service/pom.xml" />
       </list>
     </option>
   </component>
-  <component name="ProjectRootManager" version="2" languageLevel="JDK_25" default="true" project-jdk-name="openjdk-25" project-jdk-type="JavaSDK">
+  <component name="ProjectRootManager" version="2" languageLevel="JDK_21" default="true" project-jdk-name="ms-21" project-jdk-type="JavaSDK">
     <output url="file://$PROJECT_DIR$/out" />
   </component>
 </project>

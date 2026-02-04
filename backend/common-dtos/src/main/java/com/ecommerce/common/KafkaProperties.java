@@ -21,8 +21,6 @@ public class KafkaProperties {
     public static final String ORDER_CREATED_EVENTS_TOPIC = "order-created-event";
     public static final String CREATE_ORDER_COMMAND_TOPIC = "create-order-command";
     public static final String PAYMENT_INITIATED_EVENT_TOPIC = "payment-initiated-event";
-
-
     public static final String ORDER_CANCEL_EVENTS_TOPIC = "order-cancelled-event";
     public static final String INVENTORY_RELEASED_EVENTS_TOPIC = "inventory-released-event";
     public static final String PAYMENT_REFUNDED_EVENTS_TOPIC = "payment-refunded-event";

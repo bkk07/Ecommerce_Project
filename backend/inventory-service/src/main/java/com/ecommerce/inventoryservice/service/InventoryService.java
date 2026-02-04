@@ -1,6 +1,7 @@
 package com.ecommerce.inventoryservice.service;
 
 import com.ecommerce.inventory.*;
+import com.ecommerce.inventoryservice.dto.InventoryResponse;
 import com.ecommerce.inventoryservice.exception.InsufficientStockException;
 import com.ecommerce.inventoryservice.exception.InventoryNotFoundException;
 import com.ecommerce.inventoryservice.model.Inventory;
@@ -14,6 +15,8 @@ import com.ecommerce.inventoryservice.repository.StockReservationRepository;
 import com.ecommerce.order.OrderItemDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationContext;
@@ -23,9 +26,16 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import java.util.List;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static com.ecommerce.common.KafkaProperties.*;
 
+/**
+ * Service for managing product inventory.
+ * Handles stock initialization, updates, reservations, and releases.
+ * Uses the Transactional Outbox Pattern for reliable event publishing.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -37,7 +47,78 @@ public class InventoryService {
     private final ObjectMapper objectMapper;
     private final ApplicationContext applicationContext;
 
+    /**
+     * Get inventory by SKU code.
+     * 
+     * @param skuCode The SKU code to look up
+     * @return Optional containing the inventory response if found
+     */
+    @Transactional(readOnly = true)
+    @RateLimiter(name = "inventoryRead")
+    public Optional<InventoryResponse> getInventoryBySkuCode(String skuCode) {
+        log.debug("Looking up inventory for SKU: {}", skuCode);
+        return inventoryRepository.findBySkuCode(skuCode)
+                .map(this::mapToResponse);
+    }
+
+    /**
+     * Get all inventory items.
+     * 
+     * @return List of all inventory responses
+     */
+    @Transactional(readOnly = true)
+    @RateLimiter(name = "inventoryRead")
+    public List<InventoryResponse> getAllInventory() {
+        log.debug("Fetching all inventory items");
+        return inventoryRepository.findAll().stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get inventory for multiple SKU codes.
+     * 
+     * @param skuCodes List of SKU codes to look up
+     * @return List of inventory responses for found SKUs
+     */
+    @Transactional(readOnly = true)
+    @RateLimiter(name = "inventoryRead")
+    public List<InventoryResponse> getInventoryBySkuCodes(List<String> skuCodes) {
+        log.debug("Looking up inventory for {} SKUs", skuCodes.size());
+        return inventoryRepository.findBySkuCodeIn(skuCodes).stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Check if a SKU is in stock.
+     * 
+     * @param skuCode The SKU code to check
+     * @return true if available stock > 0
+     */
+    @Transactional(readOnly = true)
+    public boolean isInStock(String skuCode) {
+        return inventoryRepository.findBySkuCode(skuCode)
+                .map(inv -> inv.getAvailableStock() > 0)
+                .orElse(false);
+    }
+
+    /**
+     * Maps Inventory entity to InventoryResponse DTO.
+     */
+    private InventoryResponse mapToResponse(Inventory inventory) {
+        return InventoryResponse.builder()
+                .id(inventory.getId())
+                .skuCode(inventory.getSkuCode())
+                .quantity(inventory.getQuantity())
+                .reservedQuantity(inventory.getReservedQuantity())
+                .availableStock(inventory.getAvailableStock())
+                .inStock(inventory.getAvailableStock() > 0)
+                .build();
+    }
+
     @Transactional
+    @CircuitBreaker(name = "default")
     public void initStock(String skuCode) {
         if (inventoryRepository.findBySkuCode(skuCode).isPresent()) {
             return;
