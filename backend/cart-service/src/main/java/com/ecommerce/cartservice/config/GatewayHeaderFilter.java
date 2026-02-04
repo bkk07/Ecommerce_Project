@@ -4,6 +4,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,19 +15,22 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
 
+@Slf4j
 public class GatewayHeaderFilter extends OncePerRequestFilter {
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        System.out.println("Processing request: " + request.getMethod() + " " + request.getRequestURI());
+        log.debug("Processing request: {} {}", request.getMethod(), request.getRequestURI());
         
-        // Debug: Print all headers
-        Enumeration<String> headerNames = request.getHeaderNames();
-        while (headerNames.hasMoreElements()) {
-            String headerName = headerNames.nextElement();
-            System.out.println("Header: " + headerName + " = " + request.getHeader(headerName));
+        // Debug: Print all headers (only at trace level)
+        if (log.isTraceEnabled()) {
+            Enumeration<String> headerNames = request.getHeaderNames();
+            while (headerNames.hasMoreElements()) {
+                String headerName = headerNames.nextElement();
+                log.trace("Header: {} = {}", headerName, request.getHeader(headerName));
+            }
         }
 
         // 1. Read Headers from Gateway (Try both standard and Auth variants)
@@ -36,7 +40,7 @@ public class GatewayHeaderFilter extends OncePerRequestFilter {
         String userRole = request.getHeader("X-User-Role");
         if (userRole == null) userRole = request.getHeader("X-Auth-User-Role");
 
-        System.out.println("Resolved User ID: " + userId + ", Role: " + userRole);
+        log.debug("Resolved User ID: {}, Role: {}", userId, userRole);
 
         // 2. Validate (Ensure headers exist)
         if (userId != null && userRole != null) {

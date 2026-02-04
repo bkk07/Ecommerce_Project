@@ -826,3 +826,9 @@ This generated password is for development use only. Your security configuration
         r1_0.order_id=? 
         and r1_0.user_id=?
 2026-02-04T18:17:24.048+05:30  INFO 29404 --- [rating-service] [AsyncResolver-bootstrap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-02-04T18:22:24.064+05:30  INFO 29404 --- [rating-service] [AsyncResolver-bootstrap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-02-04T18:27:24.086+05:30  INFO 29404 --- [rating-service] [AsyncResolver-bootstrap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-02-04T18:32:24.092+05:30  INFO 29404 --- [rating-service] [AsyncResolver-bootstrap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-02-04T18:37:24.100+05:30  INFO 29404 --- [rating-service] [AsyncResolver-bootstrap-executor-%d] c.n.d.s.r.aws.ConfigClusterResolver      : Resolving eureka endpoints via configuration
+2026-02-04T19:42:54.857+05:30  INFO 29404 --- [rating-service] [kafka-producer-network-thread | rating-service-producer-1] org.apache.kafka.clients.NetworkClient   : [Producer clientId=rating-service-producer-1] Node 1 disconnected.
+2026-02-04T19:43:10.062+05:30  WARN 29404 --- [rating-service] [RatingServiceHikariPool:housekeeper] com.zaxxer.hikari.pool.HikariPool        : RatingServiceHikariPool - Thread starvation or clock leap detected (housekeeper delta=1h4m51s967ms192µs500ns).
