@@ -5,6 +5,7 @@ import com.ecommerce.order.OrderCancelEvent;
 import com.ecommerce.order.OrderCreatedEvent;
 import com.ecommerce.order.OrderDeliveredEvent;
 import com.ecommerce.order.OrderPlacedEvent;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
@@ -17,25 +18,27 @@ import static com.ecommerce.common.KafkaProperties.*;
 @RequiredArgsConstructor
 public class OrderEventPublisher {
     private final KafkaTemplate<String, Object> kafkaTemplate;
-
+    @Retry(name = "kafkaRetry")
     public void  handleOrderCancel(OrderCancelEvent orderCancelEvent) {
         log.info("Publishing Order cancel to the notification service Order Id: {}",orderCancelEvent.getOrderId());
         kafkaTemplate.send(ORDER_CANCEL_EVENTS_TOPIC ,orderCancelEvent.getOrderId(),orderCancelEvent);
     }
+    @Retry(name = "kafkaRetry")
     public void publishOrderCreatedEvent(OrderCreatedEvent event) {
         log.info("Publishing OrderCreatedEvent for Order: {}", event.getOrderId());
         kafkaTemplate.send(ORDER_CREATED_EVENTS_TOPIC, event.getOrderId(), event);
     }
-
+    @Retry(name = "kafkaRetry")
     public void publishInventoryLockEvent(InventoryLockEvent event) {
         log.info("Publishing InventoryLockEvent for Order: {}", event.getOrderId());
         kafkaTemplate.send(INVENTORY_LOCK_TOPIC, event.getOrderId(), event);
     }
+    @Retry(name = "kafkaRetry")
     public void publishOrderPlacedEvent(OrderPlacedEvent event) {
         log.info("Publishing OrderPlacedEvent for Order: {}", event.getOrderId());
         kafkaTemplate.send(ORDER_PLACED_TOPIC, event.getOrderId(), event);
     }
-
+    @Retry(name = "kafkaRetry")
     public void publishOrderDeliveredEvent(OrderDeliveredEvent event) {
         log.info("Publishing OrderDeliveredEvent for Order: {} with {} items", 
                 event.getOrderId(), event.getItems() != null ? event.getItems().size() : 0);

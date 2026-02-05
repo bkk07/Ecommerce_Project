@@ -7,7 +7,9 @@ import com.ecommerce.orderservice.dto.OrderStatsResponse;
 import com.ecommerce.orderservice.entity.Order;
 import com.ecommerce.orderservice.entity.OrderItem;
 import com.ecommerce.orderservice.enums.OrderStatus;
+import com.ecommerce.orderservice.exception.OrderNotFoundException;
 import com.ecommerce.orderservice.repository.OrderRepository;
+import io.github.resilience4j.retry.annotation.Retry;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.Cacheable;
@@ -111,9 +113,10 @@ public class AdminOrderService {
     /**
      * Get detailed order by ID
      */
+    @Retry(name = "databaseRetry")
     public AdminOrderResponse getOrderById(String orderId) {
         Order order = orderRepository.findByOrderId(orderId)
-                .orElseThrow(() -> new RuntimeException("Order not found: " + orderId));
+                .orElseThrow(() -> new OrderNotFoundException(orderId));
         
         return mapToAdminOrderResponse(order);
     }

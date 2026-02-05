@@ -9,30 +9,32 @@ spring:
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
-      group-id: product-events-group
+      group-id: payment-events-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
-      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
     producer:
-      # Use String for Keys (Product ID)
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      # Use String for Values (We send JSON strings from the Outbox)
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      # Reliability Settings
       retries: 3
       acks: all
 
   jpa:
     hibernate:
-      ddl-auto: update          # dev: update | prod: validate
+      ddl-auto: update
     show-sql: true
     open-in-view: false
     properties:
       hibernate:
         format_sql: true
         dialect: org.hibernate.dialect.MySQLDialect
+
 server:
   port: 8088
+
+# Eureka Configuration
 eureka:
   instance:
     prefer-ip-address: true
@@ -40,9 +42,170 @@ eureka:
     service-url:
       defaultZone: http://localhost:8761/eureka/
 
+# Razorpay Configuration
 razorpay:
   key:
     id: rzp_test_RyEfqhx8DTtt9q
     secret: h1qT6WLZoUmslnEvF7gz1krg
   webhook:
     secret:
+
+# Actuator & Observability
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers,retries,ratelimiters,bulkheads
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    export:
+      prometheus:
+        enabled: true
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
+        payment.create.time: true
+        payment.verify.time: true
+        payment.refund.time: true
+      percentiles:
+        http.server.requests: 0.5, 0.9, 0.95, 0.99
+        payment.create.time: 0.5, 0.9, 0.95, 0.99
+        payment.verify.time: 0.5, 0.9, 0.95, 0.99
+        payment.refund.time: 0.5, 0.9, 0.95, 0.99
+  tracing:
+    sampling:
+      probability: 1.0
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+    bulkheads:
+      enabled: true
+
+# OpenAPI / Swagger
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+    display-request-duration: true
+    filter: true
+    try-it-out-enabled: true
+  show-actuator: true
+  default-consumes-media-type: application/json
+  default-produces-media-type: application/json
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      razorpayApi:
+        registerHealthIndicator: true
+        slidingWindowSize: 20
+        minimumNumberOfCalls: 10
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 40
+        slowCallRateThreshold: 40
+        slowCallDurationThreshold: 5s
+        eventConsumerBufferSize: 10
+      default:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+
+  retry:
+    instances:
+      razorpayRetry:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - java.io.IOException
+          - java.net.SocketTimeoutException
+          - com.razorpay.RazorpayException
+      kafkaRetry:
+        maxAttempts: 5
+        waitDuration: 1s
+        retryExceptions:
+          - org.apache.kafka.common.errors.TimeoutException
+      databaseRetry:
+        maxAttempts: 3
+        waitDuration: 200ms
+
+  ratelimiter:
+    instances:
+      paymentApi:
+        limitForPeriod: 100
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
+        registerHealthIndicator: true
+        eventConsumerBufferSize: 100
+      verificationApi:
+        limitForPeriod: 50
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
+        registerHealthIndicator: true
+        eventConsumerBufferSize: 100
+      refundApi:
+        limitForPeriod: 10
+        limitRefreshPeriod: 1s
+        timeoutDuration: 0
+        registerHealthIndicator: true
+        eventConsumerBufferSize: 100
+
+  timelimiter:
+    instances:
+      razorpayApi:
+        timeoutDuration: 10s
+        cancelRunningFuture: true
+
+  bulkhead:
+    instances:
+      razorpayApi:
+        maxConcurrentCalls: 25
+        maxWaitDuration: 0
+      paymentProcessing:
+        maxConcurrentCalls: 50
+        maxWaitDuration: 100ms
+      webhookProcessing:
+        maxConcurrentCalls: 100
+        maxWaitDuration: 0
+    metrics:
+      enabled: true
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.ecommerce.paymentservice: DEBUG
+    io.github.resilience4j: DEBUG
+    org.springframework.kafka: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId:-},%X{spanId:-}] %-5level %logger{36} - %msg%n"
+
+# Reconciliation Job Configuration
+payment:
+  reconciliation:
+    enabled: true
+    fixed-delay: 120000
+    initial-delay: 60000
+    pending-threshold-minutes: 1

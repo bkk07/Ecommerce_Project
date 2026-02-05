@@ -6,7 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
-import static com.ecommerce.common.KafkaProperties.RATING_EVENTS_TOPIC;
+import static com.ecommerce.    common.KafkaProperties.RATING_EVENTS_TOPIC;
 
 @Service
 @RequiredArgsConstructor

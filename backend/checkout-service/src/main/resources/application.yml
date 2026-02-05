@@ -31,3 +31,100 @@ eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
+
+# Checkout Configuration (externalized)
+checkout:
+  currency: INR
+  status-processing: PROCESSING
+  status-completed: COMPLETED
+  status-failed: FAILED
+  status-expired: EXPIRED
+  session-timeout-minutes: 20
+  max-items-per-checkout: 50
+  idempotency-expiration-minutes: 30
+
+# Feign Client Configuration
+spring.cloud.openfeign:
+  client:
+    config:
+      default:
+        connect-timeout: 5000
+        read-timeout: 10000
+        logger-level: basic
+
+# Resilience4j Configuration
+resilience4j:
+  circuitbreaker:
+    instances:
+      checkout:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        permittedNumberOfCallsInHalfOpenState: 3
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 30s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+      cartService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 40
+      productService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 40
+      orderService:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        waitDurationInOpenState: 60s
+        failureRateThreshold: 40
+  retry:
+    instances:
+      default:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+      externalService:
+        maxAttempts: 3
+        waitDuration: 1s
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2
+        retryExceptions:
+          - feign.FeignException
+          - java.io.IOException
+  ratelimiter:
+    instances:
+      checkout:
+        limitForPeriod: 10
+        limitRefreshPeriod: 1s
+        timeoutDuration: 5s
+        registerHealthIndicator: true
+
+# Actuator endpoints for monitoring
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,circuitbreakers,ratelimiters,retries,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
+    ratelimiters:
+      enabled: true
+    redis:
+      enabled: true
+
+# Logging configuration
+logging:
+  level:
+    com.ecommerce.checkoutservice: DEBUG
+    io.github.resilience4j: INFO

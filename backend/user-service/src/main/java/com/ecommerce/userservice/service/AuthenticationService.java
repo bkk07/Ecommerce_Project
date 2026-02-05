@@ -116,8 +116,9 @@ public class AuthenticationService {
         userEvent.setEmail(savedUser.getEmail());
         userEvent.setName(savedUser.getName());
         userEvent.setPhone(savedUser.getPhone());
-        userEvent.setEventType("USER_WELCOME");
+        userEvent.setEventType("USER_CREATED");
         notificationProducer.sendUserEvent(userEvent);
+        log.info("Published USER_CREATED event for admin userId: {}", savedUser.getId());
 
         return UserAuthResponse.builder()
                 .token(token)
@@ -272,6 +273,16 @@ public class AuthenticationService {
             int remaining = otpRateLimiterService.getRemainingAttempts(userEmail, OTP_TYPE_EMAIL);
             throw new CustomException(e.getMessage() + " Remaining attempts: " + remaining, e.getStatus());
         }
+        
+        // Publish UserEvent to notification service for storing user profile
+        UserEvent userEvent = new UserEvent();
+        userEvent.setUserId(user.getId());
+        userEvent.setEmail(user.getEmail());
+        userEvent.setName(user.getName());
+        userEvent.setPhone(user.getPhone());
+        userEvent.setEventType("USER_CREATED");
+        notificationProducer.sendUserEvent(userEvent);
+        log.info("Published USER_CREATED event for userId: {}", user.getId());
         
         // Send Welcome Notification
         Map<String, String> params = new HashMap<>();

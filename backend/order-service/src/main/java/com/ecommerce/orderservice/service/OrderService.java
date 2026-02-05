@@ -10,6 +10,10 @@ import com.ecommerce.orderservice.entity.OrderItem;
 import com.ecommerce.orderservice.entity.OrderOutbox;
 import com.ecommerce.orderservice.entity.OutboxStatus;
 import com.ecommerce.orderservice.enums.OrderStatus;
+import com.ecommerce.orderservice.exception.OrderCancellationException;
+import com.ecommerce.orderservice.exception.OrderNotFoundException;
+import com.ecommerce.orderservice.exception.PaymentException;
+import com.ecommerce.orderservice.exception.ServiceUnavailableException;
 import com.ecommerce.orderservice.feign.PaymentFeign;
 import com.ecommerce.orderservice.kafka.OrderEventPublisher;
 import com.ecommerce.orderservice.mapper.OrderMapper;
@@ -19,6 +23,9 @@ import com.ecommerce.payment.PaymentInitiatedEvent;
 import com.ecommerce.payment.PaymentSuccessEvent;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.retry.annotation.Retry;
+import io.github.resilience4j.timelimiter.annotation.TimeLimiter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -43,6 +50,8 @@ public class OrderService {
 
     // 1. CREATE (Triggered by Kafka CreateOrderCommand)
     @Transactional
+    @CircuitBreaker(name = "paymentService", fallbackMethod = "createOrderFallback")
+    @Retry(name = "paymentService")
     public OrderCheckoutResponse createOrder(CreateOrderCommand command) {
         log.info("Order Service is Processing Create Order Command for User: {}", command.getUserId());
         String orderId = UUID.randomUUID().toString();
@@ -81,15 +90,26 @@ public class OrderService {
         event.setItems(command.getItems());
         event.setShippingAddress(command.getShippingAddress());
 
-        PaymentInitiatedEvent paymentInitiatedEvent = paymentFeign.createPayment(event);
-//        orderEventPublisher.publishOrderCreatedEvent(event);
-//        log.info("Published OrderCreatedEvent for Order ID: {}", orderId);
-
-        return new OrderCheckoutResponse(paymentInitiatedEvent.getRazorpayOrderId());
+        try {
+            PaymentInitiatedEvent paymentInitiatedEvent = paymentFeign.createPayment(event);
+            return new OrderCheckoutResponse(paymentInitiatedEvent.getRazorpayOrderId());
+        } catch (Exception e) {
+            log.error("Payment service call failed for order: {}", orderId, e);
+            throw new PaymentException(orderId, "Failed to initiate payment: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Fallback method when payment service is unavailable
+     */
+    public OrderCheckoutResponse createOrderFallback(CreateOrderCommand command, Throwable t) {
+        log.error("Payment service unavailable. Fallback triggered for user: {}", command.getUserId(), t);
+        throw new ServiceUnavailableException("Payment Service");
     }
 
     // 2. READ: Get My Orders (Returns DTOs)
     @Transactional(readOnly = true)
+    @Retry(name = "databaseRetry")
     public List<OrderResponse> getUserOrders(String userId) {
         log.info("Fetching orders for User ID: {}", userId);
         List<Order> orders = orderRepository.findByUserId(userId);
@@ -100,17 +120,19 @@ public class OrderService {
 
     // 3. READ: Get Specific Order (Returns DTO)
     @Transactional(readOnly = true)
+    @Retry(name = "databaseRetry")
     public OrderResponse getOrderDetails(String orderNumber) {
         log.info("Fetching details for Order ID: {}", orderNumber);
         Order order = orderRepository.findByOrderId(orderNumber)
                 .orElseThrow(() -> {
                     log.error("Order not found with ID: {}", orderNumber);
-                    return new RuntimeException("Order not found");
+                    return new OrderNotFoundException(orderNumber);
                 });
         return orderMapper.mapToDto(order);
     }
 
     @Transactional
+    @Retry(name = "databaseRetry")
     public void updatedToPlaced(PaymentSuccessEvent event){
         log.info("========================================");
         log.info("PROCESSING PAYMENT SUCCESS EVENT");
@@ -121,7 +143,7 @@ public class OrderService {
         Order order = orderRepository.findByOrderId(event.getOrderId())
                 .orElseThrow(() -> {
                     log.error("Order not found with ID: {}", event.getOrderId());
-                    return new RuntimeException("Order not found");
+                    return new OrderNotFoundException(event.getOrderId());
                 });
         
         log.info("Found order - Current Status: {}", order.getStatus());
@@ -151,12 +173,13 @@ public class OrderService {
     }
 
     @Transactional
+    @Retry(name = "databaseRetry")
     public void updatePaymentReady(PaymentInitiatedEvent event) {
         log.info("Updating order status to PAYMENT_READY for Order ID: {}", event.getOrderId());
         Order order = orderRepository.findByOrderId(event.getOrderId())
                 .orElseThrow(() -> {
                     log.error("Order not found with ID: {}", event.getOrderId());
-                    return new RuntimeException("Order not found");
+                    return new OrderNotFoundException(event.getOrderId());
                 });
         
         order.setRazorpayOrderId(event.getRazorpayOrderId());
@@ -167,16 +190,25 @@ public class OrderService {
     }
 
     @Transactional
+    @Retry(name = "databaseRetry")
     public String updateStateOfTheOrder(String orderId, OrderStatus status){
         log.info("Updating state of Order ID: {} to {}", orderId, status);
         Order order = orderRepository.findByOrderId(orderId)
                 .orElseThrow(() -> {
                     log.error("Order not found with ID: {}", orderId);
-                    return new RuntimeException("Order not found");
+                    return new OrderNotFoundException(orderId);
                 });
+        
+        // Validate status transition
+        validateStatusTransition(order, status);
         
         // If user requests cancellation, we start the Saga
         if(status == OrderStatus.CANCELLED){
+            // Check if order can be cancelled
+            if (order.getStatus() == OrderStatus.SHIPPED || order.getStatus() == OrderStatus.DELIVERED) {
+                throw new OrderCancellationException(orderId, "Order cannot be cancelled after shipping");
+            }
+            
             // We set it to CANCEL_REQUESTED to indicate Saga is in progress
             log.info("Initiated Saga Cancellation for Order {}", orderId);
             order.setStatus(OrderStatus.CANCEL_REQUESTED);
@@ -190,15 +222,37 @@ public class OrderService {
         } else {
             order.setStatus(status);
             
-            // If status is DELIVERED, publish event for rating eligibility
+            // If status is DELIVERED, publish event for rating eligibility and notification
             if (status == OrderStatus.DELIVERED) {
                 publishOrderDeliveredEvent(order);
+                // Trigger notification for order delivered
+                saveOutboxEvent(order, OrderNotificationType.ORDER_DELIVERED, null);
+            }
+            
+            // If status is SHIPPED, trigger notification
+            if (status == OrderStatus.SHIPPED) {
+                saveOutboxEvent(order, OrderNotificationType.ORDER_SHIPPED, null);
             }
         }
 
         orderRepository.save(order);
         log.info("Successfully Updated the state of the order {} to {}", order.getOrderId(), order.getStatus());
         return "Order Updated Successfully";
+    }
+    
+    /**
+     * Validate that the status transition is valid
+     */
+    private void validateStatusTransition(Order order, OrderStatus newStatus) {
+        OrderStatus currentStatus = order.getStatus();
+        
+        // Already in terminal state
+        if (currentStatus == OrderStatus.CANCELLED || currentStatus == OrderStatus.DELIVERED) {
+            if (newStatus != currentStatus) {
+                throw new OrderCancellationException(order.getOrderId(), 
+                    "Cannot change status from " + currentStatus + " to " + newStatus);
+            }
+        }
     }
 
     /**
@@ -224,12 +278,13 @@ public class OrderService {
     }
 
     @Transactional
+    @Retry(name = "databaseRetry")
     public void cancelOrder(String orderId) {
         log.info("Attempting to cancel Order ID: {} due to inventory lock failure", orderId);
         Order order = orderRepository.findByOrderId(orderId)
                 .orElseThrow(() -> {
                     log.error("Order not found with ID: {}", orderId);
-                    return new RuntimeException("Order not found");
+                    return new OrderNotFoundException(orderId);
                 });
         order.setStatus(OrderStatus.CANCELLED);
         orderRepository.save(order);

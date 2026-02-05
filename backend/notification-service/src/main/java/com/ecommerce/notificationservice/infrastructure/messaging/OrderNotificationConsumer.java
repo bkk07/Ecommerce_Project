@@ -61,8 +61,11 @@ public class OrderNotificationConsumer {
             payload.put("orderId", event.getPayload().getOrderId());
             payload.put("totalAmount", String.valueOf(event.getPayload().getTotalAmount()));
             
-            if (event.getType() == OrderNotificationType.ORDER_CANCELLED) {
-                payload.put("reason", event.getPayload().getCancellationReason());
+            // Add reason for cancelled and refunded notifications
+            if (event.getType() == OrderNotificationType.ORDER_CANCELLED ||
+                event.getType() == OrderNotificationType.ORDER_REFUNDED) {
+                String reason = event.getPayload().getCancellationReason();
+                payload.put("reason", reason != null ? reason : "N/A");
             }
 
             // 4. Send Notification
