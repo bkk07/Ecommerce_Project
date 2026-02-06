@@ -19,6 +19,8 @@ const Register = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [validationError, setValidationError] = useState('');
   const [showVerificationInfo, setShowVerificationInfo] = useState(needsVerification);
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [submittedEmail, setSubmittedEmail] = useState('');
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -34,16 +36,24 @@ const Register = () => {
     }
   }, [isAuthenticated, navigate]);
 
-  // Redirect to verification page after successful registration
+  // Handle successful registration
   useEffect(() => {
-    if (pendingVerification?.userId) {
-      navigate('/verify-email', { 
-        state: { 
-          userId: pendingVerification.userId, 
-          email: pendingVerification.email 
-        },
-        replace: true 
-      });
+    if (pendingVerification?.email) {
+      // If userId > 0, redirect to verification page (new user or unverified user)
+      // If userId === 0, show success message (account already exists - industry standard)
+      if (pendingVerification.userId && pendingVerification.userId > 0) {
+        navigate('/verify-email', { 
+          state: { 
+            userId: pendingVerification.userId, 
+            email: pendingVerification.email 
+          },
+          replace: true 
+        });
+      } else {
+        // Show generic success message - don't reveal that account exists
+        setSubmittedEmail(pendingVerification.email);
+        setRegistrationSuccess(true);
+      }
     }
   }, [pendingVerification, navigate]);
 
@@ -99,11 +109,57 @@ const Register = () => {
     e.preventDefault();
     if (!validateForm()) return;
 
+    setSubmittedEmail(formData.email);
     const { confirmPassword, ...registerData } = formData;
     dispatch(register(registerData));
   };
 
   const displayError = validationError || error;
+
+  // Show success screen after registration (industry standard - same message for all cases)
+  if (registrationSuccess) {
+    return (
+      <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-12">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <div className="mx-auto w-16 h-16 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900">Check your email</h2>
+            <p className="mt-4 text-gray-600">
+              If <span className="font-medium text-gray-900">{submittedEmail}</span> is not already registered, 
+              you will receive a verification email shortly.
+            </p>
+            <p className="mt-2 text-sm text-gray-500">
+              Please check your inbox and spam folder.
+            </p>
+          </div>
+          
+          <div className="bg-white rounded-2xl shadow-xl p-8">
+            <div className="space-y-4">
+              <Link
+                to="/login"
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500 transition-all"
+              >
+                Go to Login
+              </Link>
+              <button
+                onClick={() => {
+                  setRegistrationSuccess(false);
+                  setFormData({ name: '', email: '', phone: '', password: '', confirmPassword: '' });
+                }}
+                className="w-full flex justify-center py-3 px-4 border-2 border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 transition-all"
+              >
+                Register with different email
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[calc(100vh-200px)] flex items-center justify-center px-4 py-12">

@@ -81,7 +81,7 @@ const initialState = {
   items: [],
   totalAmount: 0,
   isLoading: false,
-  isAddingItem: false,
+  addingSkuCodes: [],
   error: null,
   successMessage: null,
 };
@@ -99,6 +99,7 @@ const cartSlice = createSlice({
     resetCart: (state) => {
       state.items = [];
       state.totalAmount = 0;
+      state.addingSkuCodes = [];
       state.error = null;
     },
   },
@@ -122,16 +123,21 @@ const cartSlice = createSlice({
         }
       })
       // Add item
-      .addCase(addItemToCart.pending, (state) => {
-        state.isAddingItem = true;
+      .addCase(addItemToCart.pending, (state, action) => {
+        const skuCode = action.meta.arg?.skuCode;
+        if (skuCode && !state.addingSkuCodes.includes(skuCode)) {
+          state.addingSkuCodes.push(skuCode);
+        }
         state.error = null;
       })
-      .addCase(addItemToCart.fulfilled, (state) => {
-        state.isAddingItem = false;
+      .addCase(addItemToCart.fulfilled, (state, action) => {
+        const skuCode = action.meta.arg?.skuCode;
+        state.addingSkuCodes = state.addingSkuCodes.filter((code) => code !== skuCode);
         state.successMessage = 'Item added to cart!';
       })
       .addCase(addItemToCart.rejected, (state, action) => {
-        state.isAddingItem = false;
+        const skuCode = action.meta.arg?.skuCode;
+        state.addingSkuCodes = state.addingSkuCodes.filter((code) => code !== skuCode);
         state.error = action.payload;
       })
       // Remove item
@@ -188,7 +194,9 @@ export const selectCartItemCount = createSelector(
 );
 export const selectCartLoading = (state) => state.cart.isLoading;
 export const selectCartError = (state) => state.cart.error;
-export const selectAddingItem = (state) => state.cart.isAddingItem;
+export const selectAddingItem = (state) => state.cart.addingSkuCodes.length > 0;
+export const selectIsAddingItemBySku = (skuCode) => (state) =>
+  Boolean(skuCode) && state.cart.addingSkuCodes.includes(skuCode);
 export const selectSuccessMessage = (state) => state.cart.successMessage;
 export const selectIsItemInCart = (skuCode) => (state) => 
   state.cart.items.some((item) => item.skuCode === skuCode);

@@ -104,7 +104,7 @@ const initialState = {
   items: [],
   totalItems: 0,
   isLoading: false,
-  isAddingItem: false,
+  updatingSkuCodes: [],
   removingItemSku: null,
   movingToCartSku: null,
   error: null,
@@ -125,6 +125,9 @@ const wishlistSlice = createSlice({
       state.items = [];
       state.totalItems = 0;
       state.isLoading = false;
+      state.updatingSkuCodes = [];
+      state.removingItemSku = null;
+      state.movingToCartSku = null;
       state.error = null;
       state.successMessage = null;
     },
@@ -146,28 +149,41 @@ const wishlistSlice = createSlice({
         state.error = action.payload;
       })
       // Add item
-      .addCase(addItemToWishlist.pending, (state) => {
-        state.isAddingItem = true;
+      .addCase(addItemToWishlist.pending, (state, action) => {
+        const skuCode = action.meta.arg?.skuCode;
+        if (skuCode && !state.updatingSkuCodes.includes(skuCode)) {
+          state.updatingSkuCodes.push(skuCode);
+        }
         state.error = null;
       })
       .addCase(addItemToWishlist.fulfilled, (state, action) => {
-        state.isAddingItem = false;
+        const skuCode = action.meta.arg?.skuCode;
+        state.updatingSkuCodes = state.updatingSkuCodes.filter((code) => code !== skuCode);
         state.successMessage = 'Item added to wishlist!';
       })
       .addCase(addItemToWishlist.rejected, (state, action) => {
-        state.isAddingItem = false;
+        const skuCode = action.meta.arg?.skuCode;
+        state.updatingSkuCodes = state.updatingSkuCodes.filter((code) => code !== skuCode);
         state.error = action.payload;
       })
       // Remove item
       .addCase(removeItemFromWishlist.pending, (state, action) => {
-        state.removingItemSku = action.meta.arg;
+        const skuCode = action.meta.arg;
+        state.removingItemSku = skuCode;
+        if (skuCode && !state.updatingSkuCodes.includes(skuCode)) {
+          state.updatingSkuCodes.push(skuCode);
+        }
         state.error = null;
       })
       .addCase(removeItemFromWishlist.fulfilled, (state, action) => {
+        const skuCode = action.payload;
+        state.updatingSkuCodes = state.updatingSkuCodes.filter((code) => code !== skuCode);
         state.removingItemSku = null;
         state.successMessage = 'Item removed from wishlist';
       })
       .addCase(removeItemFromWishlist.rejected, (state, action) => {
+        const skuCode = action.meta.arg;
+        state.updatingSkuCodes = state.updatingSkuCodes.filter((code) => code !== skuCode);
         state.removingItemSku = null;
         state.error = action.payload;
       })
@@ -202,7 +218,9 @@ export const { clearError, clearSuccessMessage, resetWishlist } = wishlistSlice.
 export const selectWishlistItems = (state) => state.wishlist.items;
 export const selectWishlistTotalItems = (state) => state.wishlist.totalItems;
 export const selectWishlistLoading = (state) => state.wishlist.isLoading;
-export const selectWishlistAddingItem = (state) => state.wishlist.isAddingItem;
+export const selectWishlistAddingItem = (state) => state.wishlist.updatingSkuCodes.length > 0;
+export const selectIsWishlistUpdatingBySku = (skuCode) => (state) =>
+  Boolean(skuCode) && state.wishlist.updatingSkuCodes.includes(skuCode);
 export const selectWishlistRemovingItem = (state) => state.wishlist.removingItemSku;
 export const selectWishlistMovingToCart = (state) => state.wishlist.movingToCartSku;
 export const selectWishlistError = (state) => state.wishlist.error;

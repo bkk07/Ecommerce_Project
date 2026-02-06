@@ -49,12 +49,25 @@ public class AuthenticationService {
         if (existingUserOpt.isPresent()) {
             User existingUser = existingUserOpt.get();
             if (existingUser.isEmailVerified()) {
-                throw new CustomException("Email already taken", HttpStatus.CONFLICT);
+                // Industry standard: Don't reveal email exists - send notification email instead
+                sendAccountExistsNotification(existingUser);
+                log.info("Registration attempted for existing verified email: {}", normalizedEmail);
+                // Return same response as successful registration to prevent user enumeration
+                return UserAuthResponse.builder()
+                        .userId(0L) // Dummy ID - user won't use this since account already exists
+                        .role(Role.USER.name())
+                        .message("If this email is not already registered, you will receive a verification email shortly.")
+                        .build();
             }
             // Resend verification if user exists but not verified
             otpRateLimiterService.checkRequestAllowed(normalizedEmail, OTP_TYPE_EMAIL);
             sendVerificationEmail(existingUser);
-            throw new CustomException("Email already registered but not verified. Please verify your email.", HttpStatus.FORBIDDEN);
+            // Return consistent response
+            return UserAuthResponse.builder()
+                    .userId(existingUser.getId())
+                    .role(existingUser.getRole().name())
+                    .message("If this email is not already registered, you will receive a verification email shortly.")
+                    .build();
         }
 
         // 1. Create User with normalized email
@@ -78,6 +91,7 @@ public class AuthenticationService {
         return UserAuthResponse.builder()
                 .userId(savedUser.getId())
                 .role(savedUser.getRole().name())
+                .message("If this email is not already registered, you will receive a verification email shortly.")
                 .build();
     }
 
@@ -375,5 +389,23 @@ public class AuthenticationService {
         emailOtp.setPayload(params);
         emailOtp.setOccurredAt(LocalDateTime.now());
         notificationProducer.sendNotification(emailOtp);
+    }
+
+    /**
+     * Send notification to existing user that someone attempted to register with their email.
+     * This prevents user enumeration attacks while still informing the actual account owner.
+     */
+    private void sendAccountExistsNotification(User user) {
+        Map<String, String> params = new HashMap<>();
+        params.put("name", user.getName());
+
+        NotificationEvent notification = new NotificationEvent();
+        notification.setEventId(UUID.randomUUID().toString());
+        notification.setEventType("ACCOUNT_EXISTS_NOTIFICATION");
+        notification.setChannel(ChannelType.EMAIL);
+        notification.setRecipient(user.getEmail());
+        notification.setPayload(params);
+        notification.setOccurredAt(LocalDateTime.now());
+        notificationProducer.sendNotification(notification);
     }
 }

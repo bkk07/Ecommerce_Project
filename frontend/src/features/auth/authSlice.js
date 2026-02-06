@@ -57,14 +57,17 @@ export const register = createAsyncThunk(
   async (userData, { rejectWithValue }) => {
     try {
       const response = await registerUser(userData);
-      // Registration returns userId but no token - email verification required
-      return { ...response, email: userData.email, requiresVerification: true };
+      // Registration always returns success with userId (industry standard - no email enumeration)
+      // If userId is 0, account already exists but we don't reveal this to prevent enumeration
+      return { 
+        ...response, 
+        email: userData.email, 
+        requiresVerification: true,
+        // Use the generic message from backend
+        genericMessage: response.message || 'If this email is not already registered, you will receive a verification email shortly.'
+      };
     } catch (error) {
       const message = error.response?.data?.message || error.response?.data?.error || 'Registration failed. Please try again.';
-      // Handle case where user already registered but not verified - prompt to re-register
-      if (error.response?.status === 403 && message.toLowerCase().includes('verify')) {
-        return rejectWithValue({ message, alreadyRegisteredNotVerified: true, email: userData.email });
-      }
       return rejectWithValue({ message });
     }
   }

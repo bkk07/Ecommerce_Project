@@ -1,20 +1,14 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { addItemToCart, selectCartSkuCodes, selectAddingItem } from '../features/cart/cartSlice';
-import { addItemToWishlist, removeItemFromWishlist, selectWishlistSkuCodes, selectWishlistAddingItem } from '../features/wishlist/wishlistSlice';
+import { addItemToCart, selectCartSkuCodes, selectIsAddingItemBySku } from '../features/cart/cartSlice';
+import { addItemToWishlist, removeItemFromWishlist, selectWishlistSkuCodes, selectIsWishlistUpdatingBySku } from '../features/wishlist/wishlistSlice';
 import { selectIsAuthenticated } from '../features/auth/authSlice';
 
 const ProductCard = ({ product }) => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  
-  const isAuthenticated = useSelector(selectIsAuthenticated);
-  const cartSkuCodes = useSelector(selectCartSkuCodes);
-  const isAddingItem = useSelector(selectAddingItem);
-  const wishlistSkuCodes = useSelector(selectWishlistSkuCodes);
-  const isAddingToWishlist = useSelector(selectWishlistAddingItem);
-  
+
   const {
     name,
     description,
@@ -29,6 +23,12 @@ const ProductCard = ({ product }) => {
 
   // Use skuCode if sku is not available
   const productSku = sku || skuCode;
+  
+  const isAuthenticated = useSelector(selectIsAuthenticated);
+  const cartSkuCodes = useSelector(selectCartSkuCodes);
+  const isAddingItem = useSelector(selectIsAddingItemBySku(productSku));
+  const wishlistSkuCodes = useSelector(selectWishlistSkuCodes);
+  const isAddingToWishlist = useSelector(selectIsWishlistUpdatingBySku(productSku));
   
   // Determine if product has been rated
   const hasRating = averageRating !== null && averageRating !== undefined && averageRating > 0 && totalRatings > 0;
