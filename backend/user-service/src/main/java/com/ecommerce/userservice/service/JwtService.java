@@ -39,8 +39,11 @@ public class JwtService {
     @Value("${jwt.private-key-base64:}")
     private String privateKeyBase64;
 
-    @Value("${jwt.token-validity-hours:24}")
-    private long tokenValidityHours;
+    @Value("${jwt.access-token-validity-minutes:15}")
+    private long accessTokenValidityMinutes;
+    
+    @Value("${jwt.refresh-token-validity-days:7}")
+    private long refreshTokenValidityDays;
 
     @Value("${jwt.issuer:user-service}")
     private String issuer;
@@ -52,7 +55,8 @@ public class JwtService {
     public void init() {
         try {
             loadKeys();
-            log.info("JWT keys loaded successfully. Token validity: {} hours", tokenValidityHours);
+            log.info("JWT keys loaded successfully. Access token validity: {} minutes, Refresh token validity: {} days", 
+                    accessTokenValidityMinutes, refreshTokenValidityDays);
         } catch (Exception e) {
             log.error("Failed to load JWT keys: {}", e.getMessage());
             throw new RuntimeException("Failed to load JWT keys. " +
@@ -120,11 +124,19 @@ public class JwtService {
     }
 
     public String generateToken(String userId, String role) {
+        return generateAccessToken(userId, role);
+    }
+    
+    /**
+     * Generate a short-lived access token (default: 15 minutes)
+     */
+    public String generateAccessToken(String userId, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", role);
+        claims.put("type", "access");
 
         long now = System.currentTimeMillis();
-        long validity = tokenValidityHours * 60 * 60 * 1000; // Convert hours to milliseconds
+        long validity = accessTokenValidityMinutes * 60 * 1000; // Convert minutes to milliseconds
 
         return Jwts.builder()
                 .setClaims(claims)
@@ -134,6 +146,29 @@ public class JwtService {
                 .setExpiration(new Date(now + validity))
                 .signWith(privateKey, SignatureAlgorithm.RS256)
                 .compact();
+    }
+    
+    /**
+     * Generate a secure random refresh token
+     */
+    public String generateRefreshToken() {
+        byte[] randomBytes = new byte[64];
+        new java.security.SecureRandom().nextBytes(randomBytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(randomBytes);
+    }
+    
+    /**
+     * Get refresh token expiry time in milliseconds
+     */
+    public long getRefreshTokenValidityMs() {
+        return refreshTokenValidityDays * 24 * 60 * 60 * 1000;
+    }
+    
+    /**
+     * Get access token expiry time in milliseconds  
+     */
+    public long getAccessTokenValidityMs() {
+        return accessTokenValidityMinutes * 60 * 1000;
     }
 
     public Claims parseAndValidate(String token) {

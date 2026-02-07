@@ -1,23 +1,12 @@
-import axios from "axios";
+import apiClient from './apiClient';
 
-const API_BASE_URL = "http://localhost:8080/admin/orders";
-
-// Get auth header with token
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("token");
-  return {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
-};
+const ADMIN_ORDERS_BASE_PATH = '/admin/orders';
 
 /**
  * Fetch order statistics for admin dashboard
  */
 export const fetchOrderStats = async () => {
-  const response = await axios.get(`${API_BASE_URL}/stats`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await apiClient.get(`${ADMIN_ORDERS_BASE_PATH}/stats`);
   return response.data;
 };
 
@@ -25,8 +14,7 @@ export const fetchOrderStats = async () => {
  * Fetch paginated list of all orders
  */
 export const fetchAllOrders = async (page = 0, size = 10, sortBy = "createdAt", sortDirection = "desc") => {
-  const response = await axios.get(API_BASE_URL, {
-    headers: getAuthHeaders(),
+  const response = await apiClient.get(ADMIN_ORDERS_BASE_PATH, {
     params: { page, size, sortBy, sortDirection },
   });
   return response.data;
@@ -36,8 +24,7 @@ export const fetchAllOrders = async (page = 0, size = 10, sortBy = "createdAt", 
  * Fetch orders filtered by status
  */
 export const fetchOrdersByStatus = async (status, page = 0, size = 10) => {
-  const response = await axios.get(`${API_BASE_URL}/status/${status}`, {
-    headers: getAuthHeaders(),
+  const response = await apiClient.get(`${ADMIN_ORDERS_BASE_PATH}/status/${status}`, {
     params: { page, size },
   });
   return response.data;
@@ -47,8 +34,7 @@ export const fetchOrdersByStatus = async (status, page = 0, size = 10) => {
  * Fetch orders within a date range
  */
 export const fetchOrdersByDateRange = async (startDate, endDate, page = 0, size = 10) => {
-  const response = await axios.get(`${API_BASE_URL}/date-range`, {
-    headers: getAuthHeaders(),
+  const response = await apiClient.get(`${ADMIN_ORDERS_BASE_PATH}/date-range`, {
     params: { startDate, endDate, page, size },
   });
   return response.data;
@@ -58,8 +44,7 @@ export const fetchOrdersByDateRange = async (startDate, endDate, page = 0, size 
  * Search orders by orderId or userId
  */
 export const searchOrders = async (keyword, page = 0, size = 10) => {
-  const response = await axios.get(`${API_BASE_URL}/search`, {
-    headers: getAuthHeaders(),
+  const response = await apiClient.get(`${ADMIN_ORDERS_BASE_PATH}/search`, {
     params: { keyword, page, size },
   });
   return response.data;
@@ -69,8 +54,6 @@ export const searchOrders = async (keyword, page = 0, size = 10) => {
  * Fetch detailed order by ID
  */
 export const fetchOrderById = async (orderId) => {
-  const response = await axios.get(`${API_BASE_URL}/${orderId}`, {
-    headers: getAuthHeaders(),
-  });
+  const response = await apiClient.get(`${ADMIN_ORDERS_BASE_PATH}/${orderId}`);
   return response.data;
 };

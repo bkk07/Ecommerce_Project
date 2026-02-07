@@ -1,21 +1,6 @@
-import axios from 'axios';
+import apiClient from './apiClient';
 
-const API_BASE_URL = 'http://localhost:8080/admin';
-
-/**
- * Create axios instance for admin API calls
- * Includes JWT token in Authorization header
- */
-const createAdminClient = () => {
-  const token = localStorage.getItem('token');
-  return axios.create({
-    baseURL: API_BASE_URL,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-    },
-  });
-};
+const ADMIN_BASE_PATH = '/admin';
 
 /**
  * Get user statistics for admin dashboard
@@ -34,7 +19,6 @@ const createAdminClient = () => {
  * }>}
  */
 export const getUserStats = async () => {
-  const client = createAdminClient();
-  const response = await client.get('/users/stats');
+  const response = await apiClient.get(`${ADMIN_BASE_PATH}/users/stats`);
   return response.data;
 };

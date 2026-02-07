@@ -1,29 +1,13 @@
-import axios from 'axios';
+import apiClient from './apiClient';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-
-const ratingClient = axios.create({
-  baseURL: `${API_BASE_URL}/api/v1/ratings`,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add auth token to requests
-ratingClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
+const API_BASE_PATH = '/api/v1/ratings';
 
 /**
  * Create a new rating for a product
  * @param {Object} ratingData - { sku, orderId, rating, message }
  */
 export const createRating = async (ratingData) => {
-  const response = await ratingClient.post('', ratingData);
+  const response = await apiClient.post(API_BASE_PATH, ratingData);
   return response.data;
 };
 
@@ -33,7 +17,7 @@ export const createRating = async (ratingData) => {
  * @param {Object} updateData - { rating, message }
  */
 export const updateRating = async (ratingId, updateData) => {
-  const response = await ratingClient.put(`/${ratingId}`, updateData);
+  const response = await apiClient.put(`${API_BASE_PATH}/${ratingId}`, updateData);
   return response.data;
 };
 
@@ -42,7 +26,7 @@ export const updateRating = async (ratingId, updateData) => {
  * @param {number} ratingId - Rating ID
  */
 export const deleteRating = async (ratingId) => {
-  await ratingClient.delete(`/${ratingId}`);
+  await apiClient.delete(`${API_BASE_PATH}/${ratingId}`);
 };
 
 /**
@@ -50,7 +34,7 @@ export const deleteRating = async (ratingId) => {
  * @param {number} ratingId - Rating ID
  */
 export const getRatingById = async (ratingId) => {
-  const response = await ratingClient.get(`/${ratingId}`);
+  const response = await apiClient.get(`${API_BASE_PATH}/${ratingId}`);
   return response.data;
 };
 
@@ -61,7 +45,7 @@ export const getRatingById = async (ratingId) => {
  */
 export const getUserRatingForOrderAndSku = async (orderId, sku) => {
   try {
-    const response = await ratingClient.get(`/order/${orderId}/sku/${sku}`);
+    const response = await apiClient.get(`${API_BASE_PATH}/order/${orderId}/sku/${sku}`);
     return response.data;
   } catch (error) {
     if (error.response?.status === 404) {
@@ -75,7 +59,7 @@ export const getUserRatingForOrderAndSku = async (orderId, sku) => {
  * Get all ratings by current user
  */
 export const getMyRatings = async () => {
-  const response = await ratingClient.get('/my-ratings');
+  const response = await apiClient.get(`${API_BASE_PATH}/my-ratings`);
   return response.data;
 };
 
@@ -84,8 +68,15 @@ export const getMyRatings = async () => {
  * @param {string} orderId - Order ID
  */
 export const getUserRatingsForOrder = async (orderId) => {
-  const response = await ratingClient.get(`/order/${orderId}`);
-  return response.data;
+  try {
+    const response = await apiClient.get(`${API_BASE_PATH}/order/${orderId}`);
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 404) {
+      return []; // No ratings found for this order
+    }
+    throw error;
+  }
 };
 
 /**
@@ -93,7 +84,7 @@ export const getUserRatingsForOrder = async (orderId) => {
  * @param {string} sku - Product SKU
  */
 export const getProductRatings = async (sku) => {
-  const response = await ratingClient.get(`/product/${sku}`);
+  const response = await apiClient.get(`${API_BASE_PATH}/product/${sku}`);
   return response.data;
 };
 
@@ -102,7 +93,7 @@ export const getProductRatings = async (sku) => {
  * @param {string} sku - Product SKU
  */
 export const getProductRatingSummary = async (sku) => {
-  const response = await ratingClient.get(`/product/${sku}/summary`);
+  const response = await apiClient.get(`${API_BASE_PATH}/product/${sku}/summary`);
   return response.data;
 };
 
@@ -112,10 +103,10 @@ export const getProductRatingSummary = async (sku) => {
  * @param {string} sku - Product SKU
  */
 export const hasUserRatedProduct = async (orderId, sku) => {
-  const response = await ratingClient.get('/check', {
+  const response = await apiClient.get(`${API_BASE_PATH}/check`, {
     params: { orderId, sku }
   });
   return response.data;
 };
 
-export default ratingClient;
+export default apiClient;

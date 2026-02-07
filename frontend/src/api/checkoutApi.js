@@ -1,47 +1,7 @@
-import axios from 'axios';
+import apiClient from './apiClient';
 
-const API_BASE_URL = 'http://localhost:8080/api/checkout';
-const PAYMENT_API_URL = 'http://localhost:8080/api/payments';
-
-// Create axios instance with auth interceptor
-const checkoutClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Create axios instance for payment API
-const paymentClient = axios.create({
-  baseURL: PAYMENT_API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add token to all requests
-checkoutClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-// Add token to payment requests
-paymentClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+const CHECKOUT_BASE_PATH = '/api/checkout';
+const PAYMENT_BASE_PATH = '/api/payments';
 
 /**
  * Initiate checkout from cart
@@ -49,7 +9,7 @@ paymentClient.interceptors.request.use(
  * @returns {Promise<{status: string, razorpayOrderId: string, amount: number, currency: string, failureReason: string, itemErrors: Array}>}
  */
 export const initiateCheckoutFromCart = async (shippingAddress = '') => {
-  const response = await checkoutClient.post('/initiate', {
+  const response = await apiClient.post(`${CHECKOUT_BASE_PATH}/initiate`, {
     cartId: true,
     items: [],
     shippingAddress: shippingAddress
@@ -64,7 +24,7 @@ export const initiateCheckoutFromCart = async (shippingAddress = '') => {
  * @returns {Promise<{status: string, razorpayOrderId: string, amount: number, currency: string, failureReason: string, itemErrors: Array}>}
  */
 export const initiateCheckoutWithItems = async (items, shippingAddress = '') => {
-  const response = await checkoutClient.post('/initiate', {
+  const response = await apiClient.post(`${CHECKOUT_BASE_PATH}/initiate`, {
     cartId: false,
     items: items.map(item => ({
       skuCode: item.skuCode,
@@ -86,7 +46,7 @@ export const initiateCheckoutWithItems = async (items, shippingAddress = '') => 
  * @returns {Promise<{message: string, verified: boolean, orderId: string, razorpayOrderId: string, razorpayPaymentId: string, amount: number, currency: string, status: string}>} - Verification response with order details
  */
 export const verifyPayment = async (razorpayOrderId, razorpayPaymentId, razorpaySignature) => {
-  const response = await paymentClient.post('/verify', {
+  const response = await apiClient.post(`${PAYMENT_BASE_PATH}/verify`, {
     razorpayOrderId,
     razorpayPaymentId,
     razorpaySignature
@@ -94,4 +54,4 @@ export const verifyPayment = async (razorpayOrderId, razorpayPaymentId, razorpay
   return response.data;
 };
 
-export default checkoutClient;
+export default apiClient;

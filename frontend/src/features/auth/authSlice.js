@@ -1,14 +1,16 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { loginUser, registerUser, verifyEmailOtp, sendEmailVerificationOtp } from '../../api/authApi';
+import { loginUser, registerUser, verifyEmailOtp, sendEmailVerificationOtp, logoutUser } from '../../api/authApi';
+import { storeTokens, clearAuth } from '../../api/apiClient';
 
 // Helper functions for localStorage
 const getStoredAuth = () => {
   try {
     const token = localStorage.getItem('token');
+    const refreshToken = localStorage.getItem('refreshToken');
     const userId = localStorage.getItem('userId');
     const role = localStorage.getItem('role');
     if (token && userId) {
-      return { token, userId: Number(userId), role };
+      return { token, refreshToken, userId: Number(userId), role };
     }
   } catch (error) {
     console.error('Error reading from localStorage:', error);
@@ -17,15 +19,13 @@ const getStoredAuth = () => {
 };
 
 const storeAuth = (authData) => {
-  localStorage.setItem('token', authData.token);
+  storeTokens(authData.token, authData.refreshToken, authData.expiresIn);
   localStorage.setItem('userId', authData.userId.toString());
   localStorage.setItem('role', authData.role || 'USER');
 };
 
 const clearStoredAuth = () => {
-  localStorage.removeItem('token');
-  localStorage.removeItem('userId');
-  localStorage.removeItem('role');
+  clearAuth();
 };
 
 // Async thunks
@@ -105,6 +105,7 @@ const storedAuth = getStoredAuth();
 const initialState = {
   user: storedAuth ? { userId: storedAuth.userId, role: storedAuth.role } : null,
   token: storedAuth?.token || null,
+  refreshToken: storedAuth?.refreshToken || null,
   isAuthenticated: !!storedAuth,
   isLoading: false,
   error: null,
@@ -114,6 +115,24 @@ const initialState = {
   resendSuccess: false,
 };
 
+// Async thunk for logout
+export const performLogout = createAsyncThunk(
+  'auth/performLogout',
+  async (_, { getState }) => {
+    const { refreshToken } = getState().auth;
+    if (refreshToken) {
+      try {
+        await logoutUser(refreshToken);
+      } catch (error) {
+        // Ignore errors - we still want to clear local state
+        console.warn('Logout API call failed:', error);
+      }
+    }
+    clearStoredAuth();
+    return null;
+  }
+);
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -121,6 +140,7 @@ const authSlice = createSlice({
     logout: (state) => {
       state.user = null;
       state.token = null;
+      state.refreshToken = null;
       state.isAuthenticated = false;
       state.error = null;
       state.pendingVerification = null;
@@ -160,6 +180,7 @@ const authSlice = createSlice({
         } else {
           state.isAuthenticated = true;
           state.token = action.payload.token;
+          state.refreshToken = action.payload.refreshToken;
           state.user = {
             userId: action.payload.userId,
             role: action.payload.role,
@@ -199,6 +220,7 @@ const authSlice = createSlice({
         state.isLoading = false;
         state.isAuthenticated = true;
         state.token = action.payload.token;
+        state.refreshToken = action.payload.refreshToken;
         state.user = {
           userId: action.payload.userId,
           role: action.payload.role,
@@ -220,6 +242,16 @@ const authSlice = createSlice({
       })
       .addCase(resendVerificationOtp.rejected, (state, action) => {
         state.error = action.payload?.message || 'Failed to resend OTP';
+      })
+      // Logout cases
+      .addCase(performLogout.fulfilled, (state) => {
+        state.user = null;
+        state.token = null;
+        state.refreshToken = null;
+        state.isAuthenticated = false;
+        state.error = null;
+        state.pendingVerification = null;
+        state.verificationSuccess = false;
       });
   },
 });
@@ -235,5 +267,6 @@ export const selectAuthError = (state) => state.auth.error;
 export const selectPendingVerification = (state) => state.auth.pendingVerification;
 export const selectVerificationSuccess = (state) => state.auth.verificationSuccess;
 export const selectResendSuccess = (state) => state.auth.resendSuccess;
+export const selectRefreshToken = (state) => state.auth.refreshToken;
 
 export default authSlice.reducer;

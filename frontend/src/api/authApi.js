@@ -28,10 +28,38 @@ export const registerUser = async (userData) => {
  * @param {Object} credentials - Login credentials
  * @param {string} credentials.email - User's email
  * @param {string} credentials.password - User's password
- * @returns {Promise<{token: string, userId: number, role: string}>}
+ * @returns {Promise<{token: string, refreshToken: string, expiresIn: number, userId: number, role: string}>}
  */
 export const loginUser = async (credentials) => {
   const response = await authClient.post('/login', credentials);
+  return response.data;
+};
+
+/**
+ * Refresh access token using refresh token
+ * @param {string} refreshToken - The refresh token
+ * @returns {Promise<{token: string, refreshToken: string, expiresIn: number, userId: number, role: string}>}
+ */
+export const refreshAccessToken = async (refreshToken) => {
+  const response = await authClient.post('/refresh', { refreshToken });
+  return response.data;
+};
+
+/**
+ * Logout user (invalidate refresh token)
+ * @param {string} refreshToken - The refresh token to invalidate
+ */
+export const logoutUser = async (refreshToken) => {
+  const response = await authClient.post('/logout', { refreshToken });
+  return response.data;
+};
+
+/**
+ * Logout from all devices
+ * @param {number} userId - User's ID
+ */
+export const logoutAllDevices = async (userId) => {
+  const response = await authClient.post(`/logout-all?userId=${userId}`);
   return response.data;
 };
 
@@ -48,7 +76,7 @@ export const sendEmailVerificationOtp = async (userId) => {
  * Verify email with OTP
  * @param {number} userId - User's ID
  * @param {string} otp - OTP code
- * @returns {Promise<{token: string, userId: number, role: string}>}
+ * @returns {Promise<{token: string, refreshToken: string, expiresIn: number, userId: number, role: string}>}
  */
 export const verifyEmailOtp = async (userId, otp) => {
   const response = await authClient.post(`/verify-email?userId=${userId}&otp=${otp}`);

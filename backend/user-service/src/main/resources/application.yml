@@ -125,7 +125,12 @@ jwt:
   # To generate: openssl genpkey -algorithm RSA -out private_key.pem -pkeyopt rsa_keygen_bits:2048
   # Then: base64 -w0 private_key.pem
   private-key-base64: ${JWT_PRIVATE_KEY}
-  token-validity-hours: ${JWT_TOKEN_VALIDITY_HOURS:24}
+  # Access token validity in minutes (default: 15 minutes)
+  access-token-validity-minutes: ${JWT_ACCESS_TOKEN_VALIDITY_MINUTES:15}
+  # Refresh token validity in days (default: 7 days)
+  refresh-token-validity-days: ${JWT_REFRESH_TOKEN_VALIDITY_DAYS:7}
+  # Maximum number of active refresh tokens per user (default: 5)
+  max-refresh-tokens-per-user: ${JWT_MAX_REFRESH_TOKENS_PER_USER:5}
   issuer: ${JWT_ISSUER:user-service}
 
 # OTP Rate Limiting Configuration

@@ -11,6 +11,7 @@ import com.ecommerce.userservice.domain.model.enums.Role;
 import com.ecommerce.userservice.domain.port.NotificationProducerPort;
 import com.ecommerce.userservice.domain.port.UserRepositoryPort;
 import com.ecommerce.userservice.exception.CustomException;
+import com.ecommerce.userservice.infrastructure.entity.RefreshTokenEntity;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,7 @@ public class AuthenticationService {
     private final UserRepositoryPort userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
     private final NotificationProducerPort notificationProducer;
     private final OtpRateLimiterService otpRateLimiterService;
     
@@ -134,8 +136,13 @@ public class AuthenticationService {
         notificationProducer.sendUserEvent(userEvent);
         log.info("Published USER_CREATED event for admin userId: {}", savedUser.getId());
 
+        // Create refresh token for admin
+        RefreshTokenEntity refreshToken = refreshTokenService.createRefreshToken(savedUser.getId(), "admin-registration");
+
         return UserAuthResponse.builder()
                 .token(token)
+                .refreshToken(refreshToken.getToken())
+                .expiresIn(jwtService.getAccessTokenValidityMs())
                 .userId(savedUser.getId())
                 .role(savedUser.getRole().name())
                 .build();
@@ -143,6 +150,11 @@ public class AuthenticationService {
 
     @Transactional
     public UserAuthResponse login(LoginRequest request) {
+        return login(request, null);
+    }
+    
+    @Transactional
+    public UserAuthResponse login(LoginRequest request, String deviceInfo) {
         // Normalize email for case-insensitive lookup
         String normalizedEmail = request.getEmail().toLowerCase().trim();
         
@@ -165,9 +177,15 @@ public class AuthenticationService {
         }
         
         Role role = user.getRole() != null ? user.getRole() : Role.USER;
-        String token = jwtService.generateToken(user.getId().toString(), role.name());
+        String accessToken = jwtService.generateAccessToken(user.getId().toString(), role.name());
+        
+        // Create refresh token
+        RefreshTokenEntity refreshToken = refreshTokenService.createRefreshToken(user.getId(), deviceInfo);
+        
         return UserAuthResponse.builder()
-                .token(token)
+                .token(accessToken)
+                .refreshToken(refreshToken.getToken())
+                .expiresIn(jwtService.getAccessTokenValidityMs())
                 .userId(user.getId())
                 .role(role.name())
                 .build();
@@ -268,6 +286,11 @@ public class AuthenticationService {
     // --- Complete Email Verification ---
     @Transactional
     public UserAuthResponse verifyEmail(Long userId, String otp) {
+        return verifyEmail(userId, otp, null);
+    }
+    
+    @Transactional
+    public UserAuthResponse verifyEmail(Long userId, String otp, String deviceInfo) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
         
@@ -302,7 +325,9 @@ public class AuthenticationService {
         Map<String, String> params = new HashMap<>();
         params.put("name", user.getName());
 
-        String token = jwtService.generateToken(user.getId().toString(), user.getRole().name());
+        String accessToken = jwtService.generateAccessToken(user.getId().toString(), user.getRole().name());
+        RefreshTokenEntity refreshToken = refreshTokenService.createRefreshToken(user.getId(), deviceInfo);
+        
         NotificationEvent welcome = new NotificationEvent();
         welcome.setEventId(UUID.randomUUID().toString());
         welcome.setEventType("USER_WELCOME");
@@ -313,7 +338,9 @@ public class AuthenticationService {
         notificationProducer.sendNotification(welcome);
 
         return UserAuthResponse.builder()
-                .token(token)
+                .token(accessToken)
+                .refreshToken(refreshToken.getToken())
+                .expiresIn(jwtService.getAccessTokenValidityMs())
                 .userId(user.getId())
                 .role(user.getRole().name())
                 .build();
@@ -407,5 +434,46 @@ public class AuthenticationService {
         notification.setPayload(params);
         notification.setOccurredAt(LocalDateTime.now());
         notificationProducer.sendNotification(notification);
+    }
+    
+    // --- Refresh Token ---
+    @Transactional
+    public UserAuthResponse refreshAccessToken(String refreshToken) {
+        RefreshTokenEntity tokenEntity = refreshTokenService.validateRefreshToken(refreshToken);
+        
+        User user = userRepository.findById(tokenEntity.getUserId())
+                .orElseThrow(() -> new CustomException("User not found", HttpStatus.NOT_FOUND));
+        
+        Role role = user.getRole() != null ? user.getRole() : Role.USER;
+        String newAccessToken = jwtService.generateAccessToken(user.getId().toString(), role.name());
+        
+        // Rotate refresh token for enhanced security
+        RefreshTokenEntity newRefreshToken = refreshTokenService.rotateRefreshToken(tokenEntity);
+        
+        log.debug("Access token refreshed for user: {}", user.getId());
+        
+        return UserAuthResponse.builder()
+                .token(newAccessToken)
+                .refreshToken(newRefreshToken.getToken())
+                .expiresIn(jwtService.getAccessTokenValidityMs())
+                .userId(user.getId())
+                .role(role.name())
+                .build();
+    }
+    
+    // --- Logout ---
+    @Transactional
+    public void logout(String refreshToken) {
+        if (refreshToken != null && !refreshToken.isBlank()) {
+            refreshTokenService.revokeToken(refreshToken);
+            log.debug("User logged out, refresh token revoked");
+        }
+    }
+    
+    // --- Logout from all devices ---
+    @Transactional
+    public void logoutAll(Long userId) {
+        refreshTokenService.revokeAllUserTokens(userId);
+        log.info("User {} logged out from all devices", userId);
     }
 }

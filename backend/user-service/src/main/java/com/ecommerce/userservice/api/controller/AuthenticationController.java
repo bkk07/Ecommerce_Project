@@ -167,4 +167,38 @@ public class AuthenticationController {
         authService.verifyPhone(userId, otp);
         return ResponseEntity.ok(Map.of("message", "Phone verified successfully"));
     }
+
+    // --- 5. Token Management ---
+
+    @Operation(summary = "Refresh access token", description = "Get a new access token using a valid refresh token")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Tokens refreshed successfully",
+                    content = @Content(schema = @Schema(implementation = UserAuthResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
+    })
+    @PostMapping("/refresh")
+    public ResponseEntity<UserAuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
+        return ResponseEntity.ok(authService.refreshAccessToken(request.getRefreshToken()));
+    }
+
+    @Operation(summary = "Logout", description = "Invalidate the current refresh token")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Logged out successfully")
+    })
+    @PostMapping("/logout")
+    public ResponseEntity<?> logout(@RequestBody(required = false) RefreshTokenRequest request) {
+        String refreshToken = request != null ? request.getRefreshToken() : null;
+        authService.logout(refreshToken);
+        return ResponseEntity.ok(Map.of("message", "Logged out successfully"));
+    }
+
+    @Operation(summary = "Logout from all devices", description = "Invalidate all refresh tokens for the user")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Logged out from all devices")
+    })
+    @PostMapping("/logout-all")
+    public ResponseEntity<?> logoutAll(@RequestParam Long userId) {
+        authService.logoutAll(userId);
+        return ResponseEntity.ok(Map.of("message", "Logged out from all devices"));
+    }
 }

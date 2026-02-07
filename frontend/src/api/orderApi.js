@@ -1,26 +1,6 @@
-import axios from 'axios';
+import apiClient from './apiClient';
 
-const API_BASE_URL = 'http://localhost:8080/api/orders';
-
-// Create axios instance with auth interceptor
-const orderClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add token to all requests
-orderClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+const API_BASE_PATH = '/api/orders';
 
 /**
  * Fetch all orders for a logged-in user
@@ -28,7 +8,7 @@ orderClient.interceptors.request.use(
  * @returns {Promise<Array<{orderNumber: string, status: string, totalAmount: number, orderDate: string, shippingAddress: string, items: Array}>>}
  */
 export const getUserOrders = async (userId) => {
-  const response = await orderClient.get(`/user/${userId}`);
+  const response = await apiClient.get(`${API_BASE_PATH}/user/${userId}`);
   return response.data;
 };
 
@@ -38,8 +18,8 @@ export const getUserOrders = async (userId) => {
  * @returns {Promise<{orderNumber: string, status: string, totalAmount: number, orderDate: string, shippingAddress: string, items: Array}>}
  */
 export const getOrderDetails = async (orderNumber) => {
-  const response = await orderClient.get(`/${orderNumber}`);
+  const response = await apiClient.get(`${API_BASE_PATH}/${orderNumber}`);
   return response.data;
 };
 
-export default orderClient;
+export default apiClient;

@@ -11,6 +11,7 @@ import ProductDetails from '../pages/ProductDetails';
 import Cart from '../pages/Cart';
 import OrderSuccess from '../pages/OrderSuccess';
 import Orders from '../pages/Orders';
+import OrderDetails from '../pages/OrderDetails';
 import Wishlist from '../pages/Wishlist';
 import AdminDashboard from '../pages/AdminDashboard';
 
@@ -25,6 +26,7 @@ const AppRoutes = () => {
       <Route path="/checkout" element={<Checkout />} />
       <Route path="/order-success" element={<OrderSuccess />} />
       <Route path="/orders" element={<Orders />} />
+      <Route path="/orders/:orderNumber" element={<OrderDetails />} />
       <Route path="/search" element={<SearchResults />} />
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />

@@ -1,33 +1,13 @@
-import axios from 'axios';
+import apiClient from './apiClient';
 
-const API_BASE_URL = 'http://localhost:8080/api/v1/wishlist';
-
-// Create axios instance with auth interceptor
-const wishlistClient = axios.create({
-  baseURL: API_BASE_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Add token to all requests
-wishlistClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+const API_BASE_PATH = '/api/v1/wishlist';
 
 /**
  * Get user's wishlist
  * @returns {Promise<{id: number, userId: number, items: Array, totalItems: number}>}
  */
 export const getWishlist = async () => {
-  const response = await wishlistClient.get('');
+  const response = await apiClient.get(API_BASE_PATH);
   return response.data;
 };
 
@@ -40,7 +20,7 @@ export const getWishlist = async () => {
  * @param {number} productId - Product ID (optional)
  */
 export const addToWishlist = async (skuCode, name, price, imageUrl = '', productId = null) => {
-  const response = await wishlistClient.post('/items', { 
+  const response = await apiClient.post(`${API_BASE_PATH}/items`, { 
     skuCode, 
     name, 
     price, 
@@ -55,7 +35,7 @@ export const addToWishlist = async (skuCode, name, price, imageUrl = '', product
  * @param {string} skuCode - Product SKU to remove
  */
 export const removeFromWishlist = async (skuCode) => {
-  const response = await wishlistClient.delete(`/items/${encodeURIComponent(skuCode)}`);
+  const response = await apiClient.delete(`${API_BASE_PATH}/items/${encodeURIComponent(skuCode)}`);
   return response.data;
 };
 
@@ -65,7 +45,7 @@ export const removeFromWishlist = async (skuCode) => {
  * @returns {Promise<{skuCode: string, exists: boolean}>}
  */
 export const checkItemInWishlist = async (skuCode) => {
-  const response = await wishlistClient.get(`/items/${encodeURIComponent(skuCode)}/exists`);
+  const response = await apiClient.get(`${API_BASE_PATH}/items/${encodeURIComponent(skuCode)}/exists`);
   return response.data;
 };
 
@@ -74,7 +54,7 @@ export const checkItemInWishlist = async (skuCode) => {
  * @param {string} skuCode - Product SKU to move
  */
 export const moveToCart = async (skuCode) => {
-  const response = await wishlistClient.post(`/${encodeURIComponent(skuCode)}/move-to-cart`);
+  const response = await apiClient.post(`${API_BASE_PATH}/${encodeURIComponent(skuCode)}/move-to-cart`);
   return response.data;
 };
 
@@ -82,7 +62,7 @@ export const moveToCart = async (skuCode) => {
  * Clear all items from wishlist
  */
 export const clearWishlist = async () => {
-  const response = await wishlistClient.delete('/clear');
+  const response = await apiClient.delete(`${API_BASE_PATH}/clear`);
   return response.data;
 };
 
