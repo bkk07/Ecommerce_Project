@@ -11,8 +11,9 @@ public class ProductCreatedEvent{
     private BigDecimal price;
     private String imageUrl;
     private List<String> categories;
+    private String brand;
     public ProductCreatedEvent(){};
-    public ProductCreatedEvent(Long productId, String name, String sku, String description, BigDecimal price, String imageUrl, List<String> categories) {
+    public ProductCreatedEvent(Long productId, String name, String sku, String description, BigDecimal price, String imageUrl, List<String> categories,String brand) {
         this.productId = productId;
         this.name = name;
         this.sku = sku;
@@ -20,8 +21,14 @@ public class ProductCreatedEvent{
         this.price = price;
         this.imageUrl = imageUrl;
         this.categories = categories;
+        this.brand = brand;
     }
-
+    public String getBrand() {
+        return brand;
+    }
+    public void setBrand(String brand) {
+        this.brand = brand;
+    }
     public Long getProductId() {
         return productId;
     }

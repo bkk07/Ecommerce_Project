@@ -121,7 +121,8 @@ public class ProductService {
                         product.getDescription(),
                         variant.getPrice(),
                         primaryImageUrl,
-                        categoryHierarchy
+                        categoryHierarchy,
+                        product.getBrand()
                 );
 
                 OutboxEvent outbox = OutboxEvent.builder()

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { 
@@ -38,7 +38,6 @@ const FloatingHearts = () => (
 const Wishlist = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const [hoveredItem, setHoveredItem] = useState(null);
   
   const isAuthenticated = useSelector(selectIsAuthenticated);
   const items = useSelector(selectWishlistItems);
@@ -208,102 +207,106 @@ const Wishlist = () => {
 
       {/* Wishlist Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {items.map((item, index) => (
             <div
               key={item.skuCode}
-              className="group relative bg-white rounded-3xl shadow-sm hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100/50 transform hover:-translate-y-2"
-              onMouseEnter={() => setHoveredItem(item.skuCode)}
-              onMouseLeave={() => setHoveredItem(null)}
-              style={{ animationDelay: `${index * 100}ms` }}
+              className="group relative bg-white rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-100"
+              style={{ animationDelay: `${index * 50}ms` }}
             >
-              {/* Heart Badge */}
-              <div className="absolute top-4 right-4 z-10">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
-                  hoveredItem === item.skuCode 
-                    ? 'bg-pink-500 scale-110' 
-                    : 'bg-white/90 backdrop-blur-sm shadow-md'
-                }`}>
-                  <svg 
-                    className={`w-5 h-5 transition-colors duration-300 ${
-                      hoveredItem === item.skuCode ? 'text-white' : 'text-pink-500'
-                    }`} 
-                    fill="currentColor" 
-                    viewBox="0 0 24 24"
-                  >
-                    <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* Image Container */}
-              <Link to={`/product/${item.skuCode}`} className="block relative aspect-square overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
-                <img
-                  src={item.imageUrl || 'https://via.placeholder.com/300x300?text=No+Image'}
-                  alt={item.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
-                />
-                {/* Gradient Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-              </Link>
-
-              {/* Content */}
-              <div className="p-5">
-                <Link to={`/product/${item.skuCode}`}>
-                  <h3 className="font-semibold text-gray-800 mb-2 line-clamp-2 group-hover:text-pink-600 transition-colors duration-300 text-lg">
-                    {item.name}
-                  </h3>
-                </Link>
-                
-                {/* Price Tag */}
-                <div className="flex items-baseline gap-2 mb-5">
-                  <span className="text-2xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
-                    ${item.price?.toFixed(2) || '0.00'}
-                  </span>
-                </div>
-
-                {/* Actions */}
-                <div className="flex gap-3">
-                  <button
-                    onClick={() => handleMoveToCart(item.skuCode)}
-                    disabled={movingToCart === item.skuCode}
-                    className="flex-1 flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 disabled:from-pink-300 disabled:to-rose-300 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-all duration-300 transform hover:scale-[1.02] shadow-md hover:shadow-lg"
-                  >
-                    {movingToCart === item.skuCode ? (
-                      <>
-                        <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Moving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                        <span>Add to Cart</span>
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => handleRemoveItem(item.skuCode)}
-                    disabled={removingItem === item.skuCode}
-                    className="w-12 h-12 flex items-center justify-center text-gray-400 hover:text-red-500 bg-gray-50 hover:bg-red-50 rounded-xl transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed group/remove"
-                    title="Remove from wishlist"
-                  >
-                    {removingItem === item.skuCode ? (
-                      <div className="w-5 h-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
-                    ) : (
-                      <svg className="w-5 h-5 group-hover/remove:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              {/* Card Layout - Horizontal on mobile, stacked on larger screens */}
+              <div className="flex flex-row md:flex-col">
+                {/* Image Container */}
+                <Link 
+                  to={`/product/${item.skuCode}`} 
+                  className="relative w-32 h-32 md:w-full md:h-56 flex-shrink-0 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden"
+                >
+                  <img
+                    src={item.imageUrl || 'https://via.placeholder.com/300x300?text=No+Image'}
+                    alt={item.name}
+                    className="w-full h-full object-contain p-3 md:p-4 group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      e.target.src = 'https://via.placeholder.com/300x300?text=No+Image';
+                    }}
+                  />
+                  {/* Top Right Badge */}
+                  <div className="absolute top-2 right-2">
+                    <div className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center shadow-md">
+                      <svg className="w-4 h-4 text-pink-500" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                       </svg>
-                    )}
-                  </button>
+                    </div>
+                  </div>
+                </Link>
+
+                {/* Content */}
+                <div className="flex-1 p-4 flex flex-col justify-between min-w-0">
+                  <div>
+                    <Link to={`/product/${item.skuCode}`}>
+                      <h3 className="font-semibold text-gray-800 line-clamp-2 group-hover:text-pink-600 transition-colors text-sm md:text-base leading-tight">
+                        {item.name}
+                      </h3>
+                    </Link>
+                    
+                    {/* Price */}
+                    <div className="mt-2">
+                      <span className="text-xl md:text-2xl font-bold text-gray-900">
+                        ${item.price?.toFixed(2) || '0.00'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions - Visible on mobile, hidden on hover for desktop */}
+                  <div className="flex items-center gap-2 mt-3 md:mt-4">
+                    <button
+                      onClick={() => handleMoveToCart(item.skuCode)}
+                      disabled={movingToCart === item.skuCode}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 disabled:from-pink-300 disabled:to-rose-300 disabled:cursor-not-allowed text-white text-sm font-semibold rounded-xl transition-all shadow-sm hover:shadow-md"
+                    >
+                      {movingToCart === item.skuCode ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                          </svg>
+                          <span className="hidden sm:inline">Add to Cart</span>
+                          <span className="sm:hidden">Cart</span>
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => handleRemoveItem(item.skuCode)}
+                      disabled={removingItem === item.skuCode}
+                      className="w-10 h-10 flex items-center justify-center text-gray-400 hover:text-red-500 bg-gray-100 hover:bg-red-50 rounded-xl transition-all disabled:opacity-50"
+                      title="Remove from wishlist"
+                    >
+                      {removingItem === item.skuCode ? (
+                        <div className="w-4 h-4 border-2 border-red-400 border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
-
-              {/* Decorative gradient border on hover */}
-              <div className="absolute inset-0 rounded-3xl border-2 border-transparent bg-gradient-to-br from-pink-400/20 to-purple-400/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
             </div>
           ))}
+        </div>
+
+        {/* Continue Shopping */}
+        <div className="mt-12 text-center">
+          <Link
+            to="/search"
+            className="inline-flex items-center gap-2 px-6 py-3 text-pink-600 hover:text-pink-700 font-semibold transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            Continue Shopping
+          </Link>
         </div>
       </div>
 

@@ -31,9 +31,9 @@ public class SearchConsumer {
             .nameKeyword(event.getName())
                 .description(event.getDescription())
                 .price(event.getPrice())
-                .isInStock(false) // By Default it is false
+                .isInStock(false)
                 .categories(event.getCategories())
-                .brand("Generic")
+                .brand(event.getBrand())
                 .imageUrl(event.getImageUrl())
                 .averageRating(0.0)
                 .totalRatings(0L)

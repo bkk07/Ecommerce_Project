@@ -57,6 +57,7 @@ export const register = createAsyncThunk(
   async (userData, { rejectWithValue }) => {
     try {
       const response = await registerUser(userData);
+      console.log('Register API raw response:', response);
       // Registration always returns success with userId (industry standard - no email enumeration)
       // If userId is 0, account already exists but we don't reveal this to prevent enumeration
       return { 
