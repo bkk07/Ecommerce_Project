@@ -1,0 +1,102 @@
+# Test Configuration for Inventory Service
+spring:
+  application:
+    name: inventory-service-test
+
+  # H2 In-Memory Database for Testing
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  h2:
+    console:
+      enabled: true
+
+  # Disable Kafka for Unit Tests
+  kafka:
+    consumer:
+      auto-startup: false
+    listener:
+      auto-startup: false
+
+  # Flyway disabled for tests
+  flyway:
+    enabled: false
+
+# Disable Eureka for Tests
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+# Disable Gateway Signature Verification for Tests
+gateway:
+  signature-verification:
+    enabled: false
+  shared-secret: test-secret-for-testing-only
+
+# Logging Configuration for Tests
+logging:
+  level:
+    root: INFO
+    com.ecommerce.inventoryservice: DEBUG
+    org.springframework.test: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# Resilience4j Test Configuration (relaxed for tests)
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 4
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 1s
+        permitted-number-of-calls-in-half-open-state: 2
+        slow-call-duration-threshold: 2s
+
+  retry:
+    configs:
+      default:
+        max-attempts: 2
+        wait-duration: 100ms
+
+  ratelimiter:
+    configs:
+      default:
+        limit-for-period: 1000
+        limit-refresh-period: 1s
+        timeout-duration: 0s
+
+# Disable Actuator Security for Tests
+management:
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+  endpoint:
+    health:
+      show-details: always
+
+# SpringDoc Test Configuration
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+# Test-specific server configuration
+server:
+  port: 0  # Random port for tests

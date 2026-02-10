@@ -170,16 +170,30 @@ public class AuthenticationController {
 
     // --- 5. Token Management ---
 
-    @Operation(summary = "Refresh access token", description = "Get a new access token using a valid refresh token")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "Tokens refreshed successfully",
-                    content = @Content(schema = @Schema(implementation = UserAuthResponse.class))),
-            @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
-    })
-    @PostMapping("/refresh")
-    public ResponseEntity<UserAuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request) {
-        return ResponseEntity.ok(authService.refreshAccessToken(request.getRefreshToken()));
-    }
+        @Operation(summary = "Refresh access token", description = "Get a new access token using a valid refresh token")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Tokens refreshed successfully",
+                                        content = @Content(schema = @Schema(implementation = UserAuthResponse.class))),
+                        @ApiResponse(responseCode = "401", description = "Invalid or expired refresh token")
+        })
+        @PostMapping("/refresh")
+        public ResponseEntity<UserAuthResponse> refreshToken(@Valid @RequestBody RefreshTokenRequest request, jakarta.servlet.http.HttpServletResponse response) {
+                try {
+                        UserAuthResponse authResponse = authService.refreshAccessToken(request.getRefreshToken());
+                        // Set refresh token as HttpOnly cookie for security
+                        jakarta.servlet.http.Cookie refreshCookie = new jakarta.servlet.http.Cookie("refreshToken", authResponse.getRefreshToken());
+                        refreshCookie.setHttpOnly(true);
+                        refreshCookie.setSecure(true); // Set to true in production (requires HTTPS)
+                        refreshCookie.setPath("/auth/refresh");
+                        refreshCookie.setMaxAge(60 * 60 * 24 * 7); // 7 days
+                        response.addCookie(refreshCookie);
+                        // Remove refreshToken from response body for extra security (optional)
+                        authResponse.setRefreshToken(null);
+                        return ResponseEntity.ok(authResponse);
+                } catch (Exception e) {
+                        return ResponseEntity.status(401).body(null);
+                }
+        }
 
     @Operation(summary = "Logout", description = "Invalidate the current refresh token")
     @ApiResponses(value = {

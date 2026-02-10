@@ -17,13 +17,10 @@ import java.time.LocalDateTime;
 public class SagaState {
     @Id
     private String orderId;
-
     private boolean inventoryReleased;
     private boolean paymentRefunded;
-
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
-
     @PrePersist
     protected void onCreate() { createdAt = LocalDateTime.now(); }
 

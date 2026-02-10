@@ -7,6 +7,7 @@ public enum OrderStatus {
     PACKED,     // Warehouse is working on it
     SHIPPED,    // Out for delivery
     DELIVERED,  // Done
-    CANCEL_REQUESTED, // Saga started for cancellation
+    CANCEL_REQUESTED,
+    INVENTORY_LOCKED,// Saga started for cancellation
     CANCELLED   // Saga completed
 }

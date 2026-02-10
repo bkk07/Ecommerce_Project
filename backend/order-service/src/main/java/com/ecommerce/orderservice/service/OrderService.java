@@ -2,7 +2,9 @@ package com.ecommerce.orderservice.service;
 
 import com.ecommerce.checkout.CreateOrderCommand;
 import com.ecommerce.checkout.OrderCheckoutResponse;
+import com.ecommerce.inventory.BatchStockLockRequest;
 import com.ecommerce.inventory.InventoryLockEvent;
+import com.ecommerce.inventory.StockItem;
 import com.ecommerce.order.*;
 import com.ecommerce.orderservice.dto.OrderResponse;
 import com.ecommerce.orderservice.entity.Order;
@@ -14,6 +16,7 @@ import com.ecommerce.orderservice.exception.OrderCancellationException;
 import com.ecommerce.orderservice.exception.OrderNotFoundException;
 import com.ecommerce.orderservice.exception.PaymentException;
 import com.ecommerce.orderservice.exception.ServiceUnavailableException;
+import com.ecommerce.orderservice.feign.InventoryFeign;
 import com.ecommerce.orderservice.feign.PaymentFeign;
 import com.ecommerce.orderservice.kafka.OrderEventPublisher;
 import com.ecommerce.orderservice.mapper.OrderMapper;
@@ -33,6 +36,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -47,6 +51,7 @@ public class OrderService {
     private final OrderOutboxRepository orderOutboxRepository;
     private final ObjectMapper objectMapper;
     private final PaymentFeign paymentFeign;
+    private final InventoryFeign inventoryFeign;
 
     // 1. CREATE (Triggered by Kafka CreateOrderCommand)
     @Transactional
@@ -78,11 +83,17 @@ public class OrderService {
         log.info("Order Persisted Successfully with ID: {}", orderId);
 
         // Publish InventoryLockEvent
-        InventoryLockEvent inventoryLockEvent = new InventoryLockEvent(orderId, command.getItems());
-        orderEventPublisher.publishInventoryLockEvent(inventoryLockEvent);
-        log.info("Published InventoryLockEvent for Order ID: {}", orderId);
+        try{
+            inventoryFeign.lockStock(new BatchStockLockRequest(mapToStockItem(command.getItems()),orderId));
+            log.info("Inventory Locked Successfully with ID: {}", orderId);
+        }catch(Exception e){
+            throw new OrderCancellationException(orderId,"Inventory Lock Failed ");
+        }
+//        InventoryLockEvent inventoryLockEvent = new InventoryLockEvent(orderId, command.getItems());
+//        orderEventPublisher.publishInventoryLockEvent(inventoryLockEvent);
+//        log.info("Published InventoryLockEvent for Order ID: {}", orderId);
 
-        // Publish OrderCreatedEvent
+//        // Publish OrderCreatedEvent
         OrderCreatedEvent event = new OrderCreatedEvent();
         event.setOrderId(orderId);
         event.setUserId(command.getUserId());
@@ -329,5 +340,15 @@ public class OrderService {
             log.error("Error serializing outbox event for Order: {}", order.getOrderId(), e);
             throw new RuntimeException("Error serializing outbox event", e);
         }
+    }
+    private List<StockItem> mapToStockItem(List<OrderItemDto> dtos){
+        List<StockItem> stockItems = new ArrayList<>();
+        for(OrderItemDto dto : dtos){
+            StockItem stockItem = new StockItem();
+            stockItem.setQuantity(dto.getQuantity());
+            stockItem.setSku(dto.getSkuCode());
+            stockItems.add(stockItem);
+        }
+        return stockItems;
     }
 }

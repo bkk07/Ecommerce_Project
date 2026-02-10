@@ -1,0 +1,95 @@
+# Test Configuration
+spring:
+  application:
+    name: payment-service-test
+
+  # H2 Database for unit tests (fast)
+  datasource:
+    url: jdbc:h2:mem:payment_test;DB_CLOSE_DELAY=-1;MODE=MySQL;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: false
+
+  # Disable Kafka for tests
+  kafka:
+    bootstrap-servers: localhost:9092
+
+    consumer:
+      group-id: payment-test-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+
+  # Disable cloud discovery
+  cloud:
+    discovery:
+      enabled: false
+
+# Eureka disabled for tests
+eureka:
+  client:
+    enabled: false
+
+# Razorpay test config
+razorpay:
+  key:
+    id: rzp_test_key_id
+    secret: rzp_test_key_secret
+  webhook:
+    secret: test_webhook_secret
+
+# Logging - minimal for tests
+logging:
+  level:
+    root: WARN
+    com.ecommerce.paymentservice: INFO
+    org.springframework.boot.test: INFO
+
+# Actuator - minimal for tests
+management:
+  endpoints:
+    enabled-by-default: false
+
+# Resilience4j test config - relaxed timeouts
+resilience4j:
+  circuitbreaker:
+    instances:
+      razorpayApi:
+        registerHealthIndicator: false
+        slidingWindowSize: 5
+        minimumNumberOfCalls: 3
+        permittedNumberOfCallsInHalfOpenState: 2
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+        waitDurationInOpenState: 1s
+        failureRateThreshold: 50
+        eventConsumerBufferSize: 10
+
+  retry:
+    instances:
+      razorpayRetry:
+        maxAttempts: 2
+        waitDuration: 100ms
+      databaseRetry:
+        maxAttempts: 2
+        waitDuration: 100ms
+      kafkaRetry:
+        maxAttempts: 2
+        waitDuration: 100ms
+
+  timelimiter:
+    instances:
+      razorpayApi:
+        timeoutDuration: 5s
+        cancelRunningFuture: true
