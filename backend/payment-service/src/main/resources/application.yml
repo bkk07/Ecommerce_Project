@@ -44,7 +44,7 @@ eureka:
 razorpay:
   key:
     id: rzp_test_RyEfqhx8DTtt9q
-    secret: h1qT6WLZoUmslnEvF7gz1krg
+    secret: ${RAZOR_PAY_SECRET}
   webhook:
     secret:
 
