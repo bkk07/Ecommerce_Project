@@ -1,192 +1,229 @@
-# Ecommerce Platform
+# 🛒 Full Stack Microservices E-Commerce Platform
 
-A scalable, production-ready e-commerce platform built with a microservices architecture (Java Spring Boot) and a modern frontend (React, Redux Toolkit, Tailwind CSS). Designed for extensibility, reliability, and clean code.
-
----
-
-## Table of Contents
-- [Project Overview](#project-overview)
-- [Features](#features)
-- [Architecture & Folder Structure](#architecture--folder-structure)
-- [Backend](#backend)
-- [Frontend](#frontend)
-- [Setup Instructions](#setup-instructions)
-- [API Usage](#api-usage)
-- [Development & Deployment](#development--deployment)
-- [Testing](#testing)
-- [Contribution Guidelines](#contribution-guidelines)
-- [License](#license)
-- [Credits](#credits)
+A production-grade full-stack e-commerce platform built using Spring Boot microservices 
+with API Gateway, Eureka service discovery, Kafka event-driven communication, 
+Saga pattern for distributed transactions, Redis caching, Elasticsearch search, 
+and Razorpay payment integration.
 
 ---
 
-## Project Overview
-A full-stack e-commerce solution featuring:
-- Microservices backend (Spring Boot, Kafka, Redis, Eureka, Feign, etc.)
-- Modern React frontend (Redux Toolkit, Tailwind CSS, React Router)
-- API Gateway, centralized config, and service discovery
-- Responsive, clean UI matching Figma designs
+# 🏗 System Architecture Overview
+
+<p align="center">
+  <img src="docs\architecture.svg" width="1100"/>
+</p>
+
+This diagram represents the complete microservices ecosystem including:
+
+- API Gateway for routing
+- Eureka for service discovery
+- Kafka for asynchronous event communication
+- Redis for cart storage & idempotency
+- Elasticsearch for search functionality
+- Separate database per service
+- Razorpay external payment integration
 
 ---
 
-## Features
-- Product search, listing, and category navigation
-- Cart, wishlist, and checkout flows (UI only)
-- Modular microservices: cart, checkout, inventory, notification, order, payment, product, rating, search, user, wishlist
-- API Gateway for routing and security
-- Service discovery (Eureka)
-- Centralized configuration (Config Server)
-- Kafka for event-driven communication
-- Redis for caching
-- OpenAPI/Swagger documentation
-- Resilience4j for circuit breaking and retries
+# 🖥 Frontend
+
+The frontend application provides:
+
+- Product browsing
+- Search functionality
+- Cart management
+- Checkout flow
+- Order history
+- User authentication
+
+The frontend communicates with backend services through the API Gateway.
 
 ---
 
-## Architecture & Folder Structure
-```
-Ecommerce/
-├── backend/
-│   ├── api-gateway/
-│   ├── cart-service/
-│   ├── checkout-service/
-│   ├── common-dtos/
-│   ├── config-server/
-│   ├── eureka/
-│   ├── inventory-service/
-│   ├── notification-service/
-│   ├── order-service/
-│   ├── payment-service/
-│   ├── product-service/
-│   ├── rating-service/
-│   ├── search-service/
-│   ├── user-service/
-│   └── wishlist-service/
-├── frontend/
-│   ├── src/
-│   │   ├── api/
-│   │   ├── components/
-│   │   ├── features/
-│   │   ├── pages/
-│   │   ├── routes/
-│   │   ├── store/
-│   │   ├── App.jsx
-│   │   └── main.jsx
-│   ├── public/
-│   └── package.json
-└── logs/
-```
+# 🔹 Microservices Overview
+
+## Core Commerce Services
+
+- **product-service** – Manages product catalog.
+- **search-service** – Handles search functionality using Elasticsearch.
+- **cart-service** – Stores cart data in Redis (key-value store).
+- **checkout-service** – Manages checkout session & idempotency.
+- **order-service** – Handles order lifecycle & acts as Saga Orchestrator.
+- **inventory-service** – Manages stock reservation & release.
+- **payment-service** – Integrates with Razorpay and manages payments.
+
+## User Domain Services
+
+- **user-service** – User profile & authentication.
+- **wishlist-service** – Wishlist management.
+- **rating-service** – Product ratings & reviews.
+
+## Supporting Services
+
+- **notification-service** – Handles notifications.
 
 ---
+
+# 🔄 Order Creation Flow
+
+<p align="center">
+  <img src="docs/order-creation.svg" width="1000"/>
+</p>
+
+### Flow Summary
+
+1. Checkout-service calls order-service (sync REST).
+2. Order-service creates order (status = PENDING).
+3. Order-service locks inventory (sync REST).
+4. Order-service creates payment (sync REST).
+5. Razorpay webhook confirms payment.
+6. Payment-service publishes `PaymentSuccessEvent` to Kafka.
+7. Order-service consumes event and updates status → PLACED.
+
+---
+
+# 🔁 Cancellation Saga Flow (Orchestrated Saga)
+
+<p align="center">
+  <img src="docs/saga-cancelletion.svg" width="1000"/>
+</p>
+
+### Compensation Steps
+
+1. Order status → CANCEL_REQUESTED.
+2. Order-service publishes `OrderCancelEvent`.
+3. Inventory-service releases stock.
+4. Payment-service processes refund.
+5. Saga state tracked in `saga_state` table.
+6. When both compensation steps complete → status = CANCELLED.
+
+---
+
+# 📦 Transactional Outbox Pattern
+
+To ensure reliable event publishing:
+
+- **inventory-service** uses `outbox_event` table.
+- **order-service** uses `order_outbox` table.
+- Events are written in the same DB transaction.
+- Scheduled publisher sends events to Kafka.
+- Prevents data inconsistency and event loss.
+
+---
+
+# 🔁 Communication Model
+
+## Synchronous (REST / Feign)
+- checkout → order
+- order → inventory
+- order → payment
+
+## Asynchronous (Kafka Events)
+- PaymentSuccessEvent
+- PaymentRefundedEvent
+- InventoryReleasedEvent
+- OrderCancelEvent
+
+---
+
+# 🗄 Storage & Data Layer
+
+- Separate database per microservice.
+- Redis used by:
+  - cart-service (cart storage)
+  - checkout-service (idempotency)
+- Elasticsearch used by search-service.
+- Saga state stored in `saga_state`.
+- Outbox tables used for reliable messaging.
+
+---
+
+# 🛠 Tech Stack
 
 ## Backend
-### Technology Stack
-- Java 21, Spring Boot 3.4+
-- Microservices: cart, checkout, inventory, notification, order, payment, product, rating, search, user, wishlist
-- API Gateway (Spring Cloud Gateway)
-- Eureka (Service Discovery)
-- Config Server (Centralized config)
-- Redis (Caching)
-- Kafka (Messaging)
-- Feign (Inter-service communication)
-- Resilience4j (Circuit breaker, retry)
-- OpenAPI/Swagger (API docs)
-- Docker (optional)
-
-### Key Endpoints (Example)
-- `/api/v1/search?category=Smartphones` (used by frontend)
-- Each microservice exposes REST endpoints (see Swagger docs)
-
----
+- Java
+- Spring Boot
+- Spring Data JPA
+- Spring Kafka
+- Feign Client
+- Resilience4j
 
 ## Frontend
-### Technology Stack
-- React (functional components)
-- Redux Toolkit (state management)
-- Tailwind CSS (styling)
-- React Router (routing)
-- Axios (API calls)
+- (Add your frontend tech here)
 
-### Main Screens & Components
-- Top Navigation Bar (Logo, Categories, Search, Wishlist, Cart, Profile)
-- Home Page (Hero, Featured Products, Shop by Category, Popular Products)
-- Product Card (image, badge, rating, name, description, price, Add to Cart)
-- Product Listing Page
-- Checkout Page (UI only)
+## Infrastructure
+- Kafka
+- Redis
+- Elasticsearch
+- MySQL / PostgreSQL
+- Docker
+- Maven
 
 ---
 
-## Setup Instructions
-### Prerequisites
-- Java 21+
-- Node.js 18+
-- Maven 3.8+
-- Docker (optional)
+# 🚀 Running the Project Locally
 
-### Backend
-1. Navigate to `backend/`
-2. Build all services:
-   ```powershell
-   mvnw clean install
-   ```
-3. Start Eureka, Config Server, and API Gateway first
-4. Start each microservice (use `mvnw spring-boot:run` or Docker Compose if available)
+## Prerequisites
+- Docker
+- Kafka
+- Redis
+- MySQL / PostgreSQL
 
-### Frontend
-1. Navigate to `frontend/`
-2. Install dependencies:
-   ```powershell
-   npm install
-   ```
-3. Start development server:
-   ```powershell
-   npm run dev
-   ```
+## Start Backend
+```bash
+docker-compose up --build
+```
+
+## Start Frontend
+```bash
+npm install
+npm start
+```
 
 ---
 
-## API Usage
-- **Frontend:** Uses `GET http://localhost:8080/api/v1/search?category=Smartphones` for all product data (initial implementation)
-- **Backend:** Each microservice exposes REST APIs (see Swagger UI at `/swagger-ui.html`)
+# 🔐 Environment Configuration
+
+Configure the following environment variables:
+
+- Razorpay API Keys
+- Kafka Broker URL
+- Database credentials
+- Redis configuration
 
 ---
 
-## Development & Deployment
-- Use `.env` files for environment variables
-- Backend can be containerized with Docker
-- Frontend can be built with `npm run build` and served via Nginx/Apache
-- CI/CD recommended for production
+# 🛡 Resilience & Reliability
+
+- Circuit breaker using Resilience4j
+- Retry mechanisms
+- Saga retry scheduler
+- Idempotent consumers
+- Transactional outbox pattern
+- At-least-once Kafka delivery
 
 ---
 
-## Testing
-- Backend: JUnit, Spring Boot Test
-- Frontend: Jest, React Testing Library
-- Run tests:
-  - Backend: `mvnw test`
-  - Frontend: `npm test`
+# ⚠️ Troubleshooting
+
+Common issues:
+
+- Kafka consumer not receiving messages
+- Razorpay webhook signature validation failure
+- Duplicate event processing
+- Saga stuck in intermediate state
+- Redis cache expiration issues
 
 ---
 
-## Contribution Guidelines
-- Fork the repo, create a branch, submit PRs
-- Follow code style and commit conventions
-- Write tests for new features
-- See `CONTRIBUTING.md` (if available)
+# 📜 License
+
+MIT License (or specify your license)
 
 ---
 
-## License
-This project is licensed under the MIT License.
+# 👨‍💻 Author
 
----
-
-## Credits
-- Built by the Ecommerce Team
-- Uses open-source libraries: Spring Boot, React, Tailwind CSS, Redux Toolkit, Kafka, Redis, etc.
-
----
-
-## Contact
-For questions or support, open an issue or contact the maintainers.
-
+Your Name  
+GitHub: YourProfile  
+LinkedIn: YourProfile  
